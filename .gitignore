@@ -1,0 +1,66 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ---- Virtual Environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Environment Variables ----
+.env
+.env.*
+*.env
+
+# ---- Streamlit ----
+.streamlit/secrets.toml
+.streamlit/*.log
+
+# ---- Data / CSVs (optional: keep if sensitive) ----
+# Uncomment if your CSVs are user-generated or private
+# data/*.csv
+# *.csv
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Pytest / Coverage ----
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ---- Type Checkers ----
+.mypy_cache/
+.pyright/
+.pytype/
+
+# ---- Logs ----
+*.log
+
+# ---- IDE / Editors ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- OS Files ----
+.DS_Store
+Thumbs.db
+
+# ---- Build Systems ----
+*.manifest
+*.spec
+
+# ---- Misc ----
+*.bak
+*.tmp

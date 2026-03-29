@@ -277,6 +277,17 @@ def inject_custom_css() -> None:
         .stButton > button {
             border-radius: 8px;
         }
+        .stButton > button[kind="primary"],
+        .stButton > button[data-testid="stBaseButton-primary"] {
+            background-color: #00A88A;
+            border-color: #00A88A;
+            color: #0E1117;
+        }
+        .stButton > button[kind="primary"]:hover,
+        .stButton > button[data-testid="stBaseButton-primary"]:hover {
+            background-color: #008F74;
+            border-color: #008F74;
+        }
 
         /* ---- Upload file-uploader tweaks ---- */
         div[data-testid="stFileUploader"] {

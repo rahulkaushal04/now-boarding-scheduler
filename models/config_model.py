@@ -7,8 +7,6 @@ from dataclasses import dataclass
 class SchedulerConfig:
     """User-facing scheduler configuration."""
 
-    target_sessions: int = 4
-    max_tables_per_slot: int = 1
     max_repeats_per_week: int = 1
 
     def validate(self) -> list[str]:
@@ -20,8 +18,6 @@ class SchedulerConfig:
         errors: list[str] = []
 
         fields = {
-            "Target sessions": self.target_sessions,
-            "Max tables per slot": self.max_tables_per_slot,
             "Max repeats per week": self.max_repeats_per_week,
         }
 

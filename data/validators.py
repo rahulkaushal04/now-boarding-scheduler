@@ -28,7 +28,6 @@ def validate_cross_files(
     medium_df: pd.DataFrame,
     timings_df: pd.DataFrame,
     place_df: pd.DataFrame,
-    metadata_df: pd.DataFrame,
 ) -> List[str]:
     """Perform cross-file validation across all CSV inputs.
 
@@ -43,27 +42,22 @@ def validate_cross_files(
     place_players = _get_name_set(place_df)
 
     # Missing in timings
-    for player in sorted(game_players - timing_players):
+    missing_timing = sorted(game_players - timing_players)
+    if missing_timing:
+        names = ", ".join(missing_timing)
         warnings.append(
-            f"Player '{player}' voted on games but not on timings — excluded from overlaps"
+            f"{names} filled the game poll but didn't fill the timings poll, "
+            "so we can't match them to a time slot yet."
         )
 
     # Missing in place
-    for player in sorted(game_players - place_players):
+    missing_place = sorted(game_players - place_players)
+    if missing_place:
+        names = ", ".join(missing_place)
         warnings.append(
-            f"Player '{player}' voted on games but not on locations — excluded from overlaps"
+            f"{names} filled the game poll but didn't fill the location poll, "
+            "so we can't assign them a venue yet."
         )
-
-    # Metadata coverage
-    if not metadata_df.empty and "Name" in metadata_df.columns:
-        metadata_names = {normalise(n) for n in metadata_df["Name"].astype(str)}
-
-        all_game_cols = _get_game_columns(heavy_df) | _get_game_columns(medium_df)
-
-        for raw_name in sorted(all_game_cols):
-            base, _ = extract_courtesy_owner(raw_name)
-            if normalise(base) not in metadata_names:
-                warnings.append(f"Game '{base}' missing from metadata CSV")
 
     return warnings
 

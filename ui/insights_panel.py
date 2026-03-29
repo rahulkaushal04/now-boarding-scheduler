@@ -2,6 +2,7 @@
 
 All charts use ``plotly_dark`` template + brand colours.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -54,16 +55,28 @@ def render_insights(
             margin=dict(l=0, r=0, t=10, b=0),
             height=max(300, len(demand_rows) * 32),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # ------------------------------------------------------------------ #
     # 2. Demand Heatmap — Game × Time Slot (summed across locations)
     # ------------------------------------------------------------------ #
     st.subheader("Demand Heatmap")
-    slot_ids = sorted(slots.keys())
-    game_ids = sorted(games.keys())
 
-    heatmap_data: list[list[int]] = []
+    # Preserve CSV column order for slots (chronological)
+    slot_ids = list(slots.keys())
+
+    # Order games by total demand (highest first)
+    game_demand_totals: dict[str, int] = {}
+    for gid in games:
+        total = 0
+        for sid in slot_ids:
+            for lid in locations:
+                total += len(overlap_map.get((gid, sid, lid), set()))
+        game_demand_totals[gid] = total
+    game_ids = sorted(games.keys(), key=lambda g: game_demand_totals.get(g, 0))
+
+    # Build raw counts matrix
+    raw_data: list[list[int]] = []
     for gid in game_ids:
         row: list[int] = []
         for sid in slot_ids:
@@ -71,16 +84,25 @@ def render_insights(
             for lid in locations:
                 total += len(overlap_map.get((gid, sid, lid), set()))
             row.append(total)
-        heatmap_data.append(row)
+        raw_data.append(row)
 
-    if heatmap_data:
+    if raw_data:
+        display_data = [[float(v) for v in row] for row in raw_data]
+        text_data = [[str(v) for v in row] for row in raw_data]
+
         fig_hm = go.Figure(
             data=go.Heatmap(
-                z=heatmap_data,
+                z=display_data,
                 x=slot_ids,
                 y=game_ids,
-                colorscale=[[0, SURFACE_RAISED], [1, PRIMARY]],
-                hovertemplate="Game: %{y}<br>Slot: %{x}<br>Eligible: %{z}<extra></extra>",
+                text=text_data,
+                texttemplate="%{text}",
+                textfont=dict(size=11),
+                colorscale=[[0, SURFACE_RAISED], [0.5, ACCENT], [1, PRIMARY]],
+                hovertemplate="Game: %{y}<br>Slot: %{x}<br>Eligible: %{z:.0f}<extra></extra>",
+                colorbar=dict(title="Players"),
+                xgap=2,
+                ygap=2,
             )
         )
         fig_hm.update_layout(
@@ -88,9 +110,10 @@ def render_insights(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=0, r=0, t=10, b=0),
-            height=max(350, len(game_ids) * 28),
+            height=max(350, len(game_ids) * 34),
+            xaxis=dict(side="top"),
         )
-        st.plotly_chart(fig_hm, use_container_width=True)
+        st.plotly_chart(fig_hm, width="stretch")
 
     # ------------------------------------------------------------------ #
     # 3. Conflict Matrix
@@ -119,17 +142,19 @@ def render_insights(
             margin=dict(l=0, r=0, t=10, b=0),
             height=max(400, len(all_game_ids) * 30),
         )
-        st.plotly_chart(fig_cm, use_container_width=True)
+        st.plotly_chart(fig_cm, width="stretch")
 
     # ------------------------------------------------------------------ #
     # 4. Player Coverage
     # ------------------------------------------------------------------ #
     st.subheader("Player Coverage")
-    accepted_idx: set[int] = st.session_state.get("accepted_indices", set())
+    selected_sessions: list[CandidateSession] = st.session_state.get(
+        "engine_selected", []
+    )
     covered_players: set[str] = set()
-    for idx in accepted_idx:
-        if idx < len(viable):
-            covered_players.update(viable[idx].eligible_players)
+    for s in selected_sessions:
+        if s.viable:
+            covered_players.update(s.eligible_players)
 
     covered_count = len(covered_players)
     total_count = len(players)
@@ -164,7 +189,7 @@ def render_insights(
             margin=dict(l=0, r=0, t=10, b=0),
             height=300,
         )
-        st.plotly_chart(fig_loc, use_container_width=True)
+        st.plotly_chart(fig_loc, width="stretch")
 
     # ------------------------------------------------------------------ #
     # 6. Unviable Games
@@ -182,11 +207,16 @@ def render_insights(
 
         reasons_df = pd.DataFrame(
             [
-                {"Game": c.game, "Slot": c.slot, "Location": c.location, "Reason": c.rejection_reason}
+                {
+                    "Game": c.game,
+                    "Slot": c.slot,
+                    "Location": c.location,
+                    "Reason": c.rejection_reason,
+                }
                 for c in unique
             ]
         )
-        st.dataframe(reasons_df, use_container_width=True, hide_index=True)
+        st.dataframe(reasons_df, width="stretch", hide_index=True)
     else:
         st.success("All candidates are viable!")
 
@@ -196,17 +226,13 @@ def render_insights(
     st.subheader("Time Slot Density (Available Players)")
     slot_player_counts: dict[str, int] = {}
     for sid in slots:
-        available = {
-            pid for pid, p in players.items() if sid in p.time_availability
-        }
+        available = {pid for pid, p in players.items() if sid in p.time_availability}
         slot_player_counts[sid] = len(available)
 
     if slot_player_counts:
+        # Preserve CSV column order (chronological)
         sdf = pd.DataFrame(
-            [
-                {"Slot": s, "Available Players": n}
-                for s, n in sorted(slot_player_counts.items())
-            ]
+            [{"Slot": s, "Available Players": slot_player_counts[s]} for s in slots]
         )
         fig_slot = px.bar(
             sdf,
@@ -221,4 +247,4 @@ def render_insights(
             margin=dict(l=0, r=0, t=10, b=0),
             height=300,
         )
-        st.plotly_chart(fig_slot, use_container_width=True)
+        st.plotly_chart(fig_slot, width="stretch")

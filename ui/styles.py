@@ -1,4 +1,5 @@
 """Design foundation — dark-mode CSS, colour constants, HTML helpers."""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -36,6 +37,155 @@ def inject_custom_css() -> None:
 
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
+        }
+
+        /* ---- Step indicator ---- */
+        .step-bar {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            background: #1B1F27;
+            border-radius: 12px;
+            padding: 6px;
+            border: 1px solid #2D333B;
+        }
+        .step-pill {
+            flex: 1;
+            text-align: center;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #6B7280;
+            transition: all 0.2s ease;
+        }
+        .step-pill.active {
+            background: rgba(0, 212, 170, 0.12);
+            color: #00D4AA;
+            font-weight: 700;
+        }
+        .step-pill.done {
+            color: #00D4AA;
+        }
+        .step-pill .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.8em;
+            font-weight: 700;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .step-pill.pending .step-num {
+            border: 2px solid #6B7280;
+            color: #6B7280;
+        }
+        .step-pill.active .step-num {
+            background: #00D4AA;
+            color: #0E1117;
+        }
+        .step-pill.done .step-num {
+            background: rgba(0, 212, 170, 0.2);
+            color: #00D4AA;
+        }
+
+        /* ---- Hero card ---- */
+        .hero-card {
+            background: linear-gradient(135deg, #1B1F27 0%, #1a2332 100%);
+            border: 1px solid #2D333B;
+            border-radius: 14px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(0, 212, 170, 0.05) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .hero-title {
+            font-size: 1.25em;
+            font-weight: 700;
+            color: #E6E6E6;
+            margin-bottom: 0.3rem;
+        }
+        .hero-subtitle {
+            color: #9CA3AF;
+            font-size: 0.92em;
+            line-height: 1.5;
+        }
+
+        /* ---- Tab styling ---- */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0;
+            background: #1B1F27;
+            border-radius: 10px;
+            padding: 4px;
+            border: 1px solid #2D333B;
+        }
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            font-size: 0.88em;
+        }
+        .stTabs [aria-selected="true"] {
+            background: rgba(0, 212, 170, 0.1) !important;
+        }
+
+        /* ---- Config card ---- */
+        .config-card {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .config-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: #E6E6E6;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ---- Stat counters ---- */
+        .stat-row {
+            display: flex;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .stat-item {
+            flex: 1;
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #00D4AA;
+            line-height: 1;
+        }
+        .stat-label {
+            font-size: 0.78em;
+            color: #6B7280;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .session-card {
@@ -120,6 +270,134 @@ def inject_custom_css() -> None:
         .stButton > button {
             border-radius: 8px;
         }
+
+        /* ---- Upload file-uploader tweaks ---- */
+        div[data-testid="stFileUploader"] {
+            margin-bottom: 0rem !important;
+        }
+        div[data-testid="stFileUploader"] section {
+            padding: 0.5rem !important;
+        }
+
+        /* ---- Game Rules change tracking ---- */
+        .rules-changes-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 184, 48, 0.06);
+            border: 1px solid rgba(255, 184, 48, 0.2);
+            border-radius: 10px;
+            padding: 0.6rem 1rem;
+            margin: 0.75rem 0 0.5rem 0;
+        }
+        .rules-changes-count {
+            color: #FFB830;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        .change-tag {
+            background: rgba(255, 184, 48, 0.1);
+            color: #FFB830;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.78em;
+            font-weight: 500;
+            margin-right: 4px;
+            display: inline-block;
+        }
+        .modified-game-row {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-left: 3px solid #FFB830;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.4rem;
+        }
+
+        /* ---- Rec panel: schedule strip ---- */
+        .schedule-strip {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.75rem;
+        }
+        .schedule-chip {
+            background: rgba(105, 240, 174, 0.08);
+            border: 1px solid rgba(105, 240, 174, 0.2);
+            border-radius: 8px;
+            padding: 0.45rem 0.9rem;
+            font-size: 0.85em;
+            color: #E6E6E6;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .schedule-chip .chip-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* ---- Rec panel: recommendation card v2 ---- */
+        .rec-card {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-radius: 12px;
+            padding: 1.15rem 1.25rem;
+            margin-bottom: 0.65rem;
+            transition: background 0.15s ease;
+        }
+        .rec-card:hover {
+            background: #262B36;
+        }
+        .rec-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+        .rec-card-title {
+            font-weight: 700;
+            font-size: 1.02em;
+            color: #E6E6E6;
+        }
+        .rec-card-meta {
+            color: #9CA3AF;
+            font-size: 0.85em;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .rec-score-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .rec-score-row .score-bar { flex: 1; }
+        .rec-score-label {
+            color: #9CA3AF;
+            font-size: 0.82em;
+            white-space: nowrap;
+        }
+
+        /* ---- Rec panel: non-viable item ---- */
+        .nv-item {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-left: 3px solid #FF6B6B;
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.9em;
+        }
+        .nv-item strong { color: #E6E6E6; }
+        .nv-reason { color: #FF6B6B; font-size: 0.88em; }
+
+        /* ---- Rec panel: empty state ---- */
+        .rec-empty {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: #6B7280;
+            font-size: 0.95em;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -129,6 +407,7 @@ def inject_custom_css() -> None:
 # ---------------------------------------------------------------------------
 # HTML helpers
 # ---------------------------------------------------------------------------
+
 
 def score_bar_html(score: float) -> str:
     """Return HTML for a horizontal score bar (0-1 → 0-100 %)."""

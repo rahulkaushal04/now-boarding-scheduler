@@ -1,9 +1,10 @@
-"""Now Boarding Scheduler — Streamlit entry point.
+"""Now Boarding Scheduler - Streamlit entry point.
 
 4-step wizard:  Upload → Game Rules → Recommendations → Insights
 
 Manages session state and orchestrates the data / engine pipeline.
 """
+
 from __future__ import annotations
 
 import streamlit as st
@@ -21,7 +22,6 @@ from ui.styles import inject_custom_css, PRIMARY, TEXT_SEC, TEXT_MUTED
 from ui.upload_panel import render_upload_section
 from ui.game_rules_panel import render_game_rules
 from ui.recommend_panel import render_recommendations
-from ui.schedule_panel import render_final_schedule
 from ui.insights_panel import render_insights
 from data.processor import (
     build_players,
@@ -54,20 +54,25 @@ STEP_LABELS = {1: "Upload", 2: "Game Rules", 3: "Recommendations", 4: "Insights"
 
 
 def _step_indicator() -> None:
-    """Render a horizontal step indicator."""
+    """Render a horizontal step indicator with numbered pills."""
     current = st.session_state["step"]
-    parts: list[str] = []
+    pills: list[str] = []
     for i, label in STEP_LABELS.items():
         if i < current:
-            parts.append(f'<span style="color:{PRIMARY}">\u2714 {label}</span>')
+            cls = "step-pill done"
+            num_content = "\u2714"
         elif i == current:
-            parts.append(f'<span style="color:{PRIMARY};font-weight:700">\u25cf {label}</span>')
+            cls = "step-pill active"
+            num_content = str(i)
         else:
-            parts.append(f'<span style="color:{TEXT_MUTED}">\u25cb {label}</span>')
+            cls = "step-pill pending"
+            num_content = str(i)
+        pills.append(
+            f'<div class="{cls}">'
+            f'<span class="step-num">{num_content}</span>{label}</div>'
+        )
     st.markdown(
-        "<div style='display:flex;gap:1.5rem;margin-bottom:1rem'>"
-        + " \u2192 ".join(parts)
-        + "</div>",
+        '<div class="step-bar">' + "".join(pills) + "</div>",
         unsafe_allow_html=True,
     )
 
@@ -80,14 +85,17 @@ def _clear_engine_cache() -> None:
         "engine_demand_matrix",
         "engine_conflict_matrix",
         "engine_overlap_map",
-        "accepted_indices",
-        "skipped_indices",
     ]:
         st.session_state.pop(key, None)
 
 
 def _has_required_uploads() -> bool:
-    for key in ["upload_heavy_df", "upload_medium_df", "upload_timings_df", "upload_place_df"]:
+    for key in [
+        "upload_heavy_df",
+        "upload_medium_df",
+        "upload_timings_df",
+        "upload_place_df",
+    ]:
         df = st.session_state.get(key)
         if df is None or (isinstance(df, pd.DataFrame) and df.empty):
             return False
@@ -100,10 +108,8 @@ def _build_entities():
     medium_df = st.session_state["upload_medium_df"]
     timings_df = st.session_state["upload_timings_df"]
     place_df = st.session_state["upload_place_df"]
-    metadata_df = st.session_state.get("upload_metadata_df", pd.DataFrame())
-
     players = build_players(heavy_df, medium_df, timings_df, place_df)
-    games = build_games(heavy_df, medium_df, metadata_df, players)
+    games = build_games(heavy_df, medium_df, players)
     slots = build_slots(timings_df)
     locations = build_locations(place_df)
 
@@ -133,9 +139,7 @@ def _run_engine() -> None:
         candidates = score_all_candidates(
             overlap_map, games, demand_matrix, slots, locations, all_player_ids
         )
-        selected = select_sessions(
-            candidates, config, conflict_matrix, all_player_ids
-        )
+        selected = select_sessions(candidates, config, conflict_matrix, all_player_ids)
 
         # Generate reasoning for selected sessions
         covered: set[str] = set()
@@ -157,7 +161,7 @@ def _run_engine() -> None:
 # ---------------------------------------------------------------------------
 # Main app flow
 # ---------------------------------------------------------------------------
-st.title("\U0001f3b2 Now Boarding Scheduler")
+st.title("Now Boarding Scheduler")
 _step_indicator()
 
 step = st.session_state["step"]
@@ -175,19 +179,21 @@ if step == 1:
             st.rerun()
     else:
         st.markdown(
-            f'<div class="summary-card"><span style="color:{TEXT_SEC}">'
-            "Upload your poll CSVs to get started \U0001f3b2</span></div>",
+            '<div class="summary-card" style="text-align:center;padding:2rem">'
+            f'<span style="color:{TEXT_SEC};font-size:1.05em">'
+            "Please add all four files to continue</span></div>",
             unsafe_allow_html=True,
         )
 
 # ============================  STEP 2  ==================================
 elif step == 2:
     players = st.session_state.get("entity_players", {})
-    games = st.session_state.get("entity_games", {})
+    original_games = st.session_state.get("entity_games", {})
+    games = st.session_state.get("rules_games", original_games)
     slots = st.session_state.get("entity_slots", {})
     locations = st.session_state.get("entity_locations", {})
 
-    updated_games = render_game_rules(games, players, slots, locations)
+    updated_games = render_game_rules(games, players, slots, locations, original_games)
     st.session_state["rules_games"] = updated_games
 
     col_back, col_next = st.columns([1, 1])
@@ -209,13 +215,13 @@ elif step == 3:
         _run_engine()
 
     candidates = st.session_state["engine_candidates"]
+    selected = st.session_state["engine_selected"]
     players = st.session_state["entity_players"]
     games = st.session_state.get("rules_games", st.session_state["entity_games"])
 
-    accepted = render_recommendations(candidates, players, games)
-
-    st.divider()
-    render_final_schedule(accepted, games)
+    accepted = render_recommendations(
+        selected, players, games, candidates, st.session_state["entity_slots"]
+    )
 
     st.divider()
 

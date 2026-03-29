@@ -1,4 +1,5 @@
 """Final schedule summary + export (CSV / WhatsApp)."""
+
 from __future__ import annotations
 
 import io
@@ -18,7 +19,9 @@ def render_final_schedule(
     st.header("Final Schedule")
 
     if not accepted:
-        st.info("No sessions accepted yet. Go back to Recommendations to build your schedule.")
+        st.info(
+            "No sessions accepted yet. Go back to Recommendations to build your schedule."
+        )
         return
 
     # ---- Summary grid ----

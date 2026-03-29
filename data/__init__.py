@@ -1,4 +1,4 @@
-from data.loader import load_game_csv, load_timings_csv, load_place_csv, load_metadata_csv
+from data.loader import load_game_csv, load_timings_csv, load_place_csv
 from data.processor import (
     build_players,
     build_games,
@@ -14,7 +14,6 @@ __all__ = [
     "load_game_csv",
     "load_timings_csv",
     "load_place_csv",
-    "load_metadata_csv",
     "build_players",
     "build_games",
     "build_slots",

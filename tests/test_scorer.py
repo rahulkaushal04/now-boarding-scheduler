@@ -1,4 +1,5 @@
 """Tests for engine/scorer.py — scoring components and viability gates."""
+
 from __future__ import annotations
 
 import pytest
@@ -50,7 +51,9 @@ class TestViabilityGate:
         locations = {"L": Location(id="L")}
         overlap = {("G", "S", "L"): {"Alice"}}
         demand = {"G": {"Alice"}}
-        candidates = score_all_candidates(overlap, games, demand, slots, locations, {"Alice"})
+        candidates = score_all_candidates(
+            overlap, games, demand, slots, locations, {"Alice"}
+        )
         assert all(not c.viable for c in candidates)
         assert "below minimum" in candidates[0].rejection_reason
 
@@ -62,26 +65,38 @@ class TestGameRuleFilters:
         locations = {"L": Location(id="L")}
         overlap = {("G", "S", "L"): {"Alice"}}  # Kiran not in eligible
         demand = {"G": {"Alice", "Kiran"}}
-        candidates = score_all_candidates(overlap, games, demand, slots, locations, {"Alice", "Kiran"})
+        candidates = score_all_candidates(
+            overlap, games, demand, slots, locations, {"Alice", "Kiran"}
+        )
         assert all(not c.viable for c in candidates)
         assert "Owner Kiran" in candidates[0].rejection_reason
 
     def test_day_restriction_rejected(self):
-        games = {"G": Game(id="G", weight_class="heavy", min_players=1, allowed_days={"Friday"})}
+        games = {
+            "G": Game(
+                id="G", weight_class="heavy", min_players=1, allowed_days={"Friday"}
+            )
+        }
         slots = {"S": Slot(id="S", day="Tuesday", time="6 PM")}
         locations = {"L": Location(id="L")}
         overlap = {("G", "S", "L"): {"Alice"}}
         demand = {"G": {"Alice"}}
-        candidates = score_all_candidates(overlap, games, demand, slots, locations, {"Alice"})
+        candidates = score_all_candidates(
+            overlap, games, demand, slots, locations, {"Alice"}
+        )
         assert all(not c.viable for c in candidates)
         assert "Tuesday rejected" in candidates[0].rejection_reason
 
     def test_location_lock_rejected(self):
-        games = {"G": Game(id="G", weight_class="heavy", min_players=1, location_lock="HSR")}
+        games = {
+            "G": Game(id="G", weight_class="heavy", min_players=1, location_lock="HSR")
+        }
         slots = {"S": Slot(id="S", day="Tue", time="6 PM")}
         locations = {"Jayanagar": Location(id="Jayanagar")}
         overlap = {("G", "S", "Jayanagar"): {"Alice"}}
         demand = {"G": {"Alice"}}
-        candidates = score_all_candidates(overlap, games, demand, slots, locations, {"Alice"})
+        candidates = score_all_candidates(
+            overlap, games, demand, slots, locations, {"Alice"}
+        )
         assert all(not c.viable for c in candidates)
         assert "locked to HSR" in candidates[0].rejection_reason

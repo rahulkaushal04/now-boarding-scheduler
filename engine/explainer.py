@@ -2,6 +2,7 @@
 
 Zero Streamlit imports.  Pure Python.
 """
+
 from __future__ import annotations
 
 from models.entities import CandidateSession, Game, SessionReasoning

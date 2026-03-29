@@ -1,4 +1,5 @@
 """Tests for engine/explainer.py — reasoning traces."""
+
 from __future__ import annotations
 
 import pytest
@@ -55,15 +56,23 @@ class TestExplainCandidate:
 class TestAddConflictNotes:
     def test_conflict_notes_added(self):
         s1 = CandidateSession(
-            game="G1", slot="S1", location="L1",
-            eligible_players={"Alice", "Bob"}, eligible_count=2, viable=True,
+            game="G1",
+            slot="S1",
+            location="L1",
+            eligible_players={"Alice", "Bob"},
+            eligible_count=2,
+            viable=True,
             reasoning=SessionReasoning(
                 demand_reason="", overlap_reason="", selection_reason=""
             ),
         )
         s2 = CandidateSession(
-            game="G2", slot="S2", location="L1",
-            eligible_players={"Alice", "Carol"}, eligible_count=2, viable=True,
+            game="G2",
+            slot="S2",
+            location="L1",
+            eligible_players={"Alice", "Carol"},
+            eligible_count=2,
+            viable=True,
             reasoning=SessionReasoning(
                 demand_reason="", overlap_reason="", selection_reason=""
             ),
@@ -74,15 +83,23 @@ class TestAddConflictNotes:
 
     def test_no_conflict_when_disjoint(self):
         s1 = CandidateSession(
-            game="G1", slot="S1", location="L1",
-            eligible_players={"Alice"}, eligible_count=1, viable=True,
+            game="G1",
+            slot="S1",
+            location="L1",
+            eligible_players={"Alice"},
+            eligible_count=1,
+            viable=True,
             reasoning=SessionReasoning(
                 demand_reason="", overlap_reason="", selection_reason=""
             ),
         )
         s2 = CandidateSession(
-            game="G2", slot="S2", location="L1",
-            eligible_players={"Bob"}, eligible_count=1, viable=True,
+            game="G2",
+            slot="S2",
+            location="L1",
+            eligible_players={"Bob"},
+            eligible_count=1,
+            viable=True,
             reasoning=SessionReasoning(
                 demand_reason="", overlap_reason="", selection_reason=""
             ),

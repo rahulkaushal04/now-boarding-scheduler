@@ -81,10 +81,9 @@ def build_players(
 def build_games(
     heavy_df: pd.DataFrame,
     medium_df: pd.DataFrame,
-    metadata_df: pd.DataFrame,
     players: Dict[str, Player],
 ) -> Dict[str, Game]:
-    """Construct Game objects with optional metadata enrichment."""
+    """Construct Game objects from poll CSVs."""
     games: Dict[str, Game] = {}
     player_names = list(players)
 
@@ -102,23 +101,6 @@ def build_games(
 
     _add_games(heavy_df, "heavy")
     _add_games(medium_df, "medium")
-
-    # Apply metadata
-    if not metadata_df.empty and "Name" in metadata_df.columns:
-        game_keys = list(games.keys())
-
-        for _, row in metadata_df.iterrows():
-            meta_name = str(row["Name"]).strip()
-
-            target = (
-                meta_name
-                if meta_name in games
-                else find_best_match(meta_name, game_keys)
-            )
-
-            if target:
-                games[target].min_players = int(row["Min Players"])
-                games[target].max_players = int(row["Max Players"])
 
     return games
 

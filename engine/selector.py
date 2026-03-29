@@ -2,6 +2,7 @@
 
 Zero Streamlit imports.  Pure Python.
 """
+
 from __future__ import annotations
 
 from models.entities import CandidateSession
@@ -14,7 +15,7 @@ def select_sessions(
     conflict_matrix: dict[tuple[str, str], int],
     all_players: set[str],
 ) -> list[CandidateSession]:
-    """Greedy-pick the top *target_sessions* non-conflicting candidates.
+    """Greedy-pick the best non-conflicting candidates.
 
     Iterates viable candidates in Layer-1 score order and enforces:
     * table capacity per (location, slot)
@@ -22,6 +23,9 @@ def select_sessions(
     * coverage bonus for sessions that serve uncovered players
     * conflict penalty for sessions sharing players at the same slot
     * diminishing-returns diversity multiplier for repeated games
+
+    Keeps going until it runs out of quality candidates (positive
+    adjusted score) or all slot/location pairs are filled.
 
     Returns selected sessions sorted by time slot.
     """
@@ -37,7 +41,7 @@ def select_sessions(
         loc_slot = (candidate.location, candidate.slot)
 
         # Hard: table capacity
-        if occupied.get(loc_slot, 0) >= config.max_tables_per_slot:
+        if occupied.get(loc_slot, 0) >= 1:
             continue
 
         # Hard: repeat limit
@@ -61,7 +65,7 @@ def select_sessions(
 
         # Soft: diminishing returns for repeated games
         game_count = game_counts.get(candidate.game, 0)
-        diversity_mult = 1.0 / (2 ** game_count)
+        diversity_mult = 1.0 / (2**game_count)
 
         adjusted = (
             candidate.viability_score * diversity_mult
@@ -75,9 +79,6 @@ def select_sessions(
             occupied[loc_slot] = occupied.get(loc_slot, 0) + 1
             covered_players.update(candidate.eligible_players)
             game_counts[candidate.game] = game_count + 1
-
-        if len(selected) >= config.target_sessions:
-            break
 
     # Present in time-slot order
     selected.sort(key=lambda c: c.slot)

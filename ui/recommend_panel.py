@@ -1,150 +1,158 @@
-"""Step 3 — Recommendations: ranked cards with accept / skip."""
+"""Step 3 — Recommendations: timetable view of best sessions."""
+
 from __future__ import annotations
+
+from collections import defaultdict
 
 import streamlit as st
 
-from models.entities import CandidateSession, Game
+from models.entities import CandidateSession, Game, Slot
 from ui.styles import (
     PRIMARY,
     ACCENT,
-    SUCCESS,
     ALERT,
+    SURFACE,
+    BORDER,
     TEXT_SEC,
-    score_bar_html,
     weight_badge_html,
-    badge_html,
 )
+
+_DAY_ORDER = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
+
+
+def _day_sort_key(day: str) -> int:
+    try:
+        return _DAY_ORDER.index(day)
+    except ValueError:
+        return 99
 
 
 def render_recommendations(
     candidates: list[CandidateSession],
     all_players: dict,
     games: dict[str, Game],
+    all_candidates: list[CandidateSession] | None = None,
+    slots: dict[str, Slot] | None = None,
 ) -> list[CandidateSession]:
-    """Render the recommendation panel.
+    """Render the recommendation panel as a timetable.
 
-    Shows "Your Schedule" at the top, ranked recommendation cards below,
-    and non-viable candidates in a collapsed section.
-
-    Returns the list of accepted ``CandidateSession`` objects.
+    All viable selected sessions are shown in a day/time grid.
+    Returns the viable sessions list.
     """
-    st.header("Recommendations")
-
-    # Initialise accepted set
-    if "accepted_indices" not in st.session_state:
-        st.session_state["accepted_indices"] = set()
-    if "skipped_indices" not in st.session_state:
-        st.session_state["skipped_indices"] = set()
-
-    accepted_idx: set[int] = st.session_state["accepted_indices"]
-    skipped_idx: set[int] = st.session_state["skipped_indices"]
+    slots = slots or {}
 
     viable = [c for c in candidates if c.viable]
-    non_viable = [c for c in candidates if not c.viable]
+    _all = all_candidates if all_candidates is not None else candidates
+    non_viable = [c for c in _all if not c.viable]
 
-    # ---- Your Schedule panel ----
-    accepted_sessions = [viable[i] for i in sorted(accepted_idx) if i < len(viable)]
-    covered = set()
-    for s in accepted_sessions:
-        covered.update(s.eligible_players)
-
-    target = st.session_state.get("config_target_sessions", 4)
-
+    # ---- Hero-style header ----
     st.markdown(
-        f'<div class="summary-card">'
-        f"<strong style='color:{PRIMARY}'>"
-        f"\u2705 Your Schedule ({len(accepted_sessions)} of {target})</strong>",
+        '<div class="hero-card">'
+        '<div class="hero-title">Recommendations</div>'
+        '<div class="hero-subtitle">'
+        "Your best sessions for the week, based on player votes and availability."
+        "</div></div>",
         unsafe_allow_html=True,
     )
-    if accepted_sessions:
-        for s in accepted_sessions:
-            wc = games.get(s.game)
-            wclass = wc.weight_class if wc else "medium"
-            tag_class = "tag-heavy" if wclass == "heavy" else "tag-medium"
+
+    if not viable:
+        st.markdown(
+            '<div class="rec-empty">No recommendations right now.<br>'
+            "Try changing the game rules or settings.</div>",
+            unsafe_allow_html=True,
+        )
+        return []
+
+    # ---- Stat counters ----
+    st.markdown(
+        '<div class="stat-row">'
+        f'<div class="stat-item"><div class="stat-value">{len(viable)}</div>'
+        f'<div class="stat-label">Sessions</div></div>'
+        f'<div class="stat-item"><div class="stat-value">'
+        f"{len({p for c in viable for p in c.eligible_players})}/{len(all_players)}</div>"
+        f'<div class="stat-label">Players covered</div></div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ---- Build timetable grid: rows = locations, cols = days ----
+    day_set: set[str] = set()
+    loc_set: set[str] = set()
+    grid: dict[tuple[str, str], list[CandidateSession]] = defaultdict(list)
+
+    for c in viable:
+        slot_obj = slots.get(c.slot)
+        day = slot_obj.day if slot_obj else c.slot
+        day_set.add(day)
+        loc_set.add(c.location)
+        grid[(day, c.location)].append(c)
+
+    sorted_days = sorted(day_set, key=_day_sort_key)
+    sorted_locs = sorted(loc_set)
+
+    # ---- Render timetable ----
+    # Header row
+    header_cols = st.columns([1] + [2] * len(sorted_days))
+    with header_cols[0]:
+        st.markdown(
+            f'<div style="padding:0.5rem 0;color:{TEXT_SEC};'
+            f'font-weight:600;font-size:0.85em">Place</div>',
+            unsafe_allow_html=True,
+        )
+    for i, day in enumerate(sorted_days):
+        with header_cols[i + 1]:
             st.markdown(
-                f'<div class="session-card {tag_class}" style="padding:0.5rem 1rem">'
-                f"<strong>{s.game}</strong> &middot; {s.slot} &middot; "
-                f"{s.location} &middot; {s.eligible_count} players "
-                f'{badge_html("Accepted", SUCCESS)}</div>',
+                f'<div style="padding:0.5rem 0;color:{PRIMARY};'
+                f'font-weight:700;font-size:0.92em;text-align:center">{day}</div>',
                 unsafe_allow_html=True,
             )
-    else:
-        st.markdown(
-            f"<span style='color:{TEXT_SEC}'>Accept recommendations below to build your schedule.</span>",
-            unsafe_allow_html=True,
-        )
 
-    st.markdown(
-        f'<div class="coverage-counter">Coverage: '
-        f"<strong>{len(covered)}</strong> of "
-        f"<strong>{len(all_players)}</strong> players</div></div>",
-        unsafe_allow_html=True,
-    )
-
-    st.divider()
-
-    # ---- Recommendation cards (viable, not yet accepted/skipped) ----
-    shown = 0
-    for idx, c in enumerate(viable):
-        if idx in accepted_idx or idx in skipped_idx:
-            continue
-
-        wc = games.get(c.game)
-        wclass = wc.weight_class if wc else "medium"
-        tag_class = "tag-heavy" if wclass == "heavy" else "tag-medium"
-        total_interested = len(
-            st.session_state.get("engine_demand_matrix", {}).get(c.game, set())
-        )
-
-        st.markdown(
-            f'<div class="session-card {tag_class}">'
-            f"<strong>\U0001f3b2 {c.game}</strong> "
-            f"{weight_badge_html(wclass)}<br>"
-            f"<span style='color:{TEXT_SEC}'>"
-            f"\U0001f4c5 {c.slot} &middot; \U0001f4cd {c.location}</span><br>"
-            f"<span style='color:{TEXT_SEC}'>"
-            f"\U0001f465 {c.eligible_count} eligible"
-            f" (of {total_interested} interested)</span><br>"
-            f"{score_bar_html(c.viability_score)}"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-        # Reasoning expander
-        if c.reasoning:
-            with st.expander("Why this recommendation?", expanded=False):
-                st.markdown(f"**Demand:** {c.reasoning.demand_reason}")
-                st.markdown(f"**Overlap:** {c.reasoning.overlap_reason}")
-                st.markdown(f"**Selection:** {c.reasoning.selection_reason}")
-                if c.reasoning.conflict_note:
-                    st.markdown(f"**Conflicts:** {c.reasoning.conflict_note}")
-                if c.reasoning.score_breakdown:
-                    st.caption("Score breakdown")
-                    cols = st.columns(len(c.reasoning.score_breakdown))
-                    for ci, (k, v) in enumerate(
-                        sorted(c.reasoning.score_breakdown.items())
-                    ):
-                        cols[ci].metric(k.capitalize(), f"{v:.2f}")
-
-        # Accept / Skip buttons
-        bcol1, bcol2, _ = st.columns([1, 1, 4])
-        with bcol1:
-            if st.button("\u2705 Accept", key=f"accept_{idx}"):
-                st.session_state["accepted_indices"].add(idx)
-                st.rerun()
-        with bcol2:
-            if st.button("\u23ed Skip", key=f"skip_{idx}"):
-                st.session_state["skipped_indices"].add(idx)
-                st.rerun()
-
-        shown += 1
-
-    if shown == 0 and not accepted_sessions:
-        st.info("No viable recommendations found. Try adjusting game rules or config.")
+    # Data rows
+    for loc in sorted_locs:
+        row_cols = st.columns([1] + [2] * len(sorted_days))
+        with row_cols[0]:
+            st.markdown(
+                f'<div style="padding:0.6rem 0;color:{TEXT_SEC};'
+                f'font-size:0.88em;font-weight:500">{loc}</div>',
+                unsafe_allow_html=True,
+            )
+        for i, day in enumerate(sorted_days):
+            with row_cols[i + 1]:
+                sessions = grid.get((day, loc), [])
+                if sessions:
+                    for c in sessions:
+                        wc = games.get(c.game)
+                        wclass = wc.weight_class if wc else "medium"
+                        border_color = PRIMARY if wclass == "heavy" else ACCENT
+                        slot_obj = slots.get(c.slot)
+                        time_label = slot_obj.time if slot_obj else c.slot
+                        st.markdown(
+                            f'<div class="rec-card" style="border-left:4px solid '
+                            f'{border_color};padding:0.6rem 0.8rem;margin-bottom:0.35rem">'
+                            f'<strong style="font-size:0.92em">{c.game}</strong> '
+                            f"{weight_badge_html(wclass)}<br>"
+                            f'<span style="color:{TEXT_SEC};font-size:0.82em">'
+                            f"{time_label} / {c.eligible_count} players</span>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.markdown(
+                        f'<div style="padding:0.6rem;text-align:center;'
+                        f'color:{BORDER};font-size:0.85em">—</div>',
+                        unsafe_allow_html=True,
+                    )
 
     # ---- Non-viable section ----
     if non_viable:
-        # De-duplicate non-viable by (game, rejection_reason)
         seen: set[tuple[str, str]] = set()
         unique_non_viable: list[CandidateSession] = []
         for c in non_viable:
@@ -154,14 +162,14 @@ def render_recommendations(
                 unique_non_viable.append(c)
 
         with st.expander(
-            f"Not viable ({len(unique_non_viable)} unique reasons)", expanded=False
+            f"Can't be scheduled ({len(unique_non_viable)})", expanded=False
         ):
             for c in unique_non_viable:
                 st.markdown(
-                    f'<div class="session-card" style="border-left:4px solid {ALERT}">'
-                    f"<strong>{c.game}</strong> &middot; {c.slot} &middot; {c.location}<br>"
-                    f'<span style="color:{ALERT}">{c.rejection_reason}</span></div>',
+                    f'<div class="nv-item">'
+                    f"<strong>{c.game}</strong> / {c.slot} / {c.location}<br>"
+                    f'<span class="nv-reason">{c.rejection_reason}</span></div>',
                     unsafe_allow_html=True,
                 )
 
-    return accepted_sessions
+    return viable

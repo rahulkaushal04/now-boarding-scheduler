@@ -1,12 +1,18 @@
-"""Design foundation — dark-mode CSS, colour constants, HTML helpers."""
+"""Design foundation — dark-mode CSS, colour palette, and HTML helpers.
+
+All brand colours are defined as module-level constants.  ``inject_custom_css``
+pushes the shared stylesheet into every Streamlit page, while the
+``*_badge_html`` / ``score_bar_html`` helpers produce small HTML fragments
+used throughout the UI panels.
+"""
 
 from __future__ import annotations
 
+import html as _html
+
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Colour constants
-# ---------------------------------------------------------------------------
+# Colour palette
 PRIMARY = "#00D4AA"
 PRIMARY_MUTED = "#00A88A"
 ACCENT = "#FFB830"
@@ -25,11 +31,12 @@ HEAVY_COLOR = PRIMARY
 MEDIUM_COLOR = ACCENT
 
 
-# ---------------------------------------------------------------------------
-# CSS injection
-# ---------------------------------------------------------------------------
 def inject_custom_css() -> None:
-    """Inject dark-mode card styles, score bars, badges."""
+    """Inject the shared dark-mode stylesheet into the current Streamlit page.
+
+    Covers step indicators, cards, badges, score bars, recommendation
+    panels, and game-rules change-tracking components.
+    """
     st.markdown(
         """
         <style>
@@ -404,13 +411,12 @@ def inject_custom_css() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# HTML helpers
-# ---------------------------------------------------------------------------
-
-
 def score_bar_html(score: float) -> str:
-    """Return HTML for a horizontal score bar (0-1 → 0-100 %)."""
+    """Return HTML for a horizontal score bar.
+
+    Args:
+        score: Value in [0, 1] mapped to 0–100 %.
+    """
     pct = max(0.0, min(100.0, score * 100))
     return (
         f'<div class="score-bar">'
@@ -421,17 +427,27 @@ def score_bar_html(score: float) -> str:
 
 
 def badge_html(text: str, color: str) -> str:
-    """Return an inline coloured badge."""
+    """Return an inline coloured badge ``<span>``.
+
+    Args:
+        text: Label text (HTML-escaped automatically).
+        color: Hex colour string, e.g. ``"#00D4AA"``.
+    """
     r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+    safe = _html.escape(text)
     return (
         f'<span style="background:rgba({r},{g},{b},0.15);color:{color};'
         f"padding:2px 8px;border-radius:4px;font-size:0.85em;"
-        f'font-weight:600;display:inline-block">{text}</span>'
+        f'font-weight:600;display:inline-block">{safe}</span>'
     )
 
 
 def weight_badge_html(weight_class: str) -> str:
-    """Return a Heavy / Medium weight-class badge."""
+    """Return a Heavy / Medium weight-class badge.
+
+    Args:
+        weight_class: ``"heavy"`` or ``"medium"``.
+    """
     if weight_class == "heavy":
         return badge_html("Heavy", PRIMARY)
     return badge_html("Medium", ACCENT)

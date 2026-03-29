@@ -1,4 +1,9 @@
-"""Step 3 — Recommendations: timetable view of best sessions."""
+"""Step 3 — Recommendations: timetable view of best sessions.
+
+Renders a day × location grid of the highest-scoring viable sessions
+selected by the engine, plus a collapsible section for non-viable
+candidates and their rejection reasons.
+"""
 
 from __future__ import annotations
 
@@ -6,13 +11,11 @@ from collections import defaultdict
 
 import streamlit as st
 
-from models.entities import CandidateSession, Game, Slot
+from models.entities import CandidateSession, Game, Player, Slot
 from ui.styles import (
-    PRIMARY,
     ACCENT,
-    ALERT,
-    SURFACE,
     BORDER,
+    PRIMARY,
     TEXT_SEC,
     weight_badge_html,
 )
@@ -29,6 +32,7 @@ _DAY_ORDER = [
 
 
 def _day_sort_key(day: str) -> int:
+    """Return a weekday sort index (Monday = 0 … Sunday = 6, unknown = 99)."""
     try:
         return _DAY_ORDER.index(day)
     except ValueError:
@@ -37,21 +41,28 @@ def _day_sort_key(day: str) -> int:
 
 def render_recommendations(
     candidates: list[CandidateSession],
-    all_players: dict,
+    all_players: dict[str, Player],
     games: dict[str, Game],
     all_candidates: list[CandidateSession] | None = None,
     slots: dict[str, Slot] | None = None,
 ) -> list[CandidateSession]:
-    """Render the recommendation panel as a timetable.
+    """Render the recommendation panel as a day × location timetable.
 
-    All viable selected sessions are shown in a day/time grid.
-    Returns the viable sessions list.
+    Args:
+        candidates: Selected (viable) sessions from the engine.
+        all_players: Full player dict for coverage stats.
+        games: Game objects keyed by id.
+        all_candidates: Complete candidate list (viable + non-viable).
+        slots: Slot objects for day/time resolution.
+
+    Returns:
+        List of viable sessions shown in the timetable.
     """
     slots = slots or {}
 
     viable = [c for c in candidates if c.viable]
-    _all = all_candidates if all_candidates is not None else candidates
-    non_viable = [c for c in _all if not c.viable]
+    pool = all_candidates if all_candidates is not None else candidates
+    non_viable = [c for c in pool if not c.viable]
 
     # ---- Hero-style header ----
     st.markdown(
@@ -72,12 +83,13 @@ def render_recommendations(
         return []
 
     # ---- Stat counters ----
+    covered_players = {p for c in viable for p in c.eligible_players}
     st.markdown(
         '<div class="stat-row">'
         f'<div class="stat-item"><div class="stat-value">{len(viable)}</div>'
         f'<div class="stat-label">Sessions</div></div>'
         f'<div class="stat-item"><div class="stat-value">'
-        f"{len({p for c in viable for p in c.eligible_players})}/{len(all_players)}</div>"
+        f"{len(covered_players)}/{len(all_players)}</div>"
         f'<div class="stat-label">Players covered</div></div>'
         "</div>",
         unsafe_allow_html=True,
@@ -93,7 +105,7 @@ def render_recommendations(
         day = slot_obj.day if slot_obj else c.slot
         day_set.add(day)
         loc_set.add(c.location)
-        grid[(day, c.location)].append(c)
+        grid[day, c.location].append(c)
 
     sorted_days = sorted(day_set, key=_day_sort_key)
     sorted_locs = sorted(loc_set)
@@ -127,27 +139,27 @@ def render_recommendations(
         for i, day in enumerate(sorted_days):
             with row_cols[i + 1]:
                 sessions = grid.get((day, loc), [])
-                if sessions:
-                    for c in sessions:
-                        wc = games.get(c.game)
-                        wclass = wc.weight_class if wc else "medium"
-                        border_color = PRIMARY if wclass == "heavy" else ACCENT
-                        slot_obj = slots.get(c.slot)
-                        time_label = slot_obj.time if slot_obj else c.slot
-                        st.markdown(
-                            f'<div class="rec-card" style="border-left:4px solid '
-                            f'{border_color};padding:0.6rem 0.8rem;margin-bottom:0.35rem">'
-                            f'<strong style="font-size:0.92em">{c.game}</strong> '
-                            f"{weight_badge_html(wclass)}<br>"
-                            f'<span style="color:{TEXT_SEC};font-size:0.82em">'
-                            f"{time_label} / {c.eligible_count} players</span>"
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
-                else:
+                if not sessions:
                     st.markdown(
                         f'<div style="padding:0.6rem;text-align:center;'
                         f'color:{BORDER};font-size:0.85em">—</div>',
+                        unsafe_allow_html=True,
+                    )
+                    continue
+                for c in sessions:
+                    wc = games.get(c.game)
+                    wclass = wc.weight_class if wc else "medium"
+                    border_color = PRIMARY if wclass == "heavy" else ACCENT
+                    slot_obj = slots.get(c.slot)
+                    time_label = slot_obj.time if slot_obj else c.slot
+                    st.markdown(
+                        f'<div class="rec-card" style="border-left:4px solid '
+                        f'{border_color};padding:0.6rem 0.8rem;margin-bottom:0.35rem">'
+                        f'<strong style="font-size:0.92em">{c.game}</strong> '
+                        f"{weight_badge_html(wclass)}<br>"
+                        f'<span style="color:{TEXT_SEC};font-size:0.82em">'
+                        f"{time_label} / {c.eligible_count} players</span>"
+                        f"</div>",
                         unsafe_allow_html=True,
                     )
 
@@ -162,7 +174,7 @@ def render_recommendations(
                 unique_non_viable.append(c)
 
         with st.expander(
-            f"Can't be scheduled ({len(unique_non_viable)})", expanded=False
+            f"Can\u2019t be scheduled ({len(unique_non_viable)})", expanded=False
         ):
             for c in unique_non_viable:
                 st.markdown(

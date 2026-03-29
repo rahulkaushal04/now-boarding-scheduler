@@ -1,4 +1,8 @@
-"""Final schedule summary + export (CSV / WhatsApp)."""
+"""Final schedule summary and export (CSV / WhatsApp copy-paste).
+
+Renders accepted sessions as styled cards and provides a downloadable
+CSV plus a pre-formatted WhatsApp text block for sharing.
+"""
 
 from __future__ import annotations
 
@@ -8,26 +12,32 @@ import pandas as pd
 import streamlit as st
 
 from models.entities import CandidateSession, Game
-from ui.styles import PRIMARY, TEXT_SEC, SUCCESS, weight_badge_html, badge_html
+from ui.styles import SUCCESS, TEXT_SEC, badge_html, weight_badge_html
 
 
 def render_final_schedule(
     accepted: list[CandidateSession],
     games: dict[str, Game],
 ) -> None:
-    """Render the final accepted schedule with export options."""
+    """Render the final accepted schedule with export options.
+
+    Args:
+        accepted: Sessions the user accepted from the recommendations step.
+        games: Game objects keyed by id (used for weight-class badges).
+    """
     st.header("Final Schedule")
 
     if not accepted:
         st.info(
-            "No sessions accepted yet. Go back to Recommendations to build your schedule."
+            "No sessions accepted yet. "
+            "Go back to Recommendations to build your schedule."
         )
         return
 
-    # ---- Summary grid ----
+    # ---- Summary cards ----
     for s in accepted:
-        wc = games.get(s.game)
-        wclass = wc.weight_class if wc else "medium"
+        game = games.get(s.game)
+        wclass = game.weight_class if game else "medium"
         tag_class = "tag-heavy" if wclass == "heavy" else "tag-medium"
         st.markdown(
             f'<div class="session-card {tag_class}">'
@@ -43,20 +53,21 @@ def render_final_schedule(
     st.divider()
 
     # ---- CSV export ----
-    rows = []
-    for s in accepted:
-        wc = games.get(s.game)
-        rows.append(
+    export_df = pd.DataFrame(
+        [
             {
                 "Game": s.game,
-                "Weight Class": wc.weight_class.capitalize() if wc else "",
+                "Weight Class": (
+                    games[s.game].weight_class.capitalize() if s.game in games else ""
+                ),
                 "Slot": s.slot,
                 "Location": s.location,
                 "Eligible Players": s.eligible_count,
                 "Players": ", ".join(sorted(s.eligible_players)),
             }
-        )
-    export_df = pd.DataFrame(rows)
+            for s in accepted
+        ]
+    )
 
     csv_buffer = io.StringIO()
     export_df.to_csv(csv_buffer, index=False)

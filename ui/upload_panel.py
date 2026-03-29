@@ -1,29 +1,35 @@
-"""Step 1 - File upload and session configuration."""
+"""Step 1 — File upload and session configuration.
+
+Provides ``render_upload_section`` which presents four tabbed data inputs
+(heavy games, medium games, timings, locations) alongside a configuration
+sidebar.  Parsed DataFrames are validated and stored in session state.
+"""
 
 from __future__ import annotations
 
 import io
 import zipfile
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-from data.loader import (
-    load_game_csv,
-    load_timings_csv,
-    load_place_csv,
-)
-from data.validators import validate_cross_files
 from models.config_model import SchedulerConfig
-from ui.styles import PRIMARY, SUCCESS, ACCENT, TEXT_MUTED
+from data.validators import validate_cross_files
+from ui.styles import ACCENT, SUCCESS, TEXT_MUTED
+from data.loader import load_game_csv, load_place_csv, load_timings_csv
 
+_EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example_data"
 
-# ---------------------------------------------------------------------------
-# Data source descriptors
-# ---------------------------------------------------------------------------
-_DATA_SOURCES = [
+_EXAMPLE_FILES: dict[str, Path] = {
+    "heavy": _EXAMPLE_DIR / "heavy_games.csv",
+    "medium": _EXAMPLE_DIR / "medium_games.csv",
+    "timings": _EXAMPLE_DIR / "timings.csv",
+    "place": _EXAMPLE_DIR / "place.csv",
+}
+
+_DATA_SOURCES: list[dict[str, str]] = [
     {
         "key": "heavy",
         "label": "Heavy Games",
@@ -39,22 +45,30 @@ _DATA_SOURCES = [
         "label": "Timings",
         "desc": "When each player is available to play",
     },
-    {"key": "place", "label": "Locations", "desc": "Where each player prefers to play"},
+    {
+        "key": "place",
+        "label": "Locations",
+        "desc": "Where each player prefers to play",
+    },
 ]
 
 
 def _parse_pasted_csv(text: str) -> io.StringIO | None:
-    """Return a StringIO if text looks like CSV, else None."""
+    """Return a ``StringIO`` wrapping *text* if it looks like CSV, else ``None``."""
     stripped = text.strip()
-    if not stripped:
-        return None
-    return io.StringIO(stripped)
+    return io.StringIO(stripped) if stripped else None
 
 
 def _input_widget(key: str, label: str, desc: str) -> tuple[Any, str | None]:
-    """Render a compact input that supports file upload OR paste.
+    """Render a compact input that supports file upload **or** pasted CSV.
 
-    Returns (file_obj_or_None, pasted_text_or_None).
+    Args:
+        key: Unique key prefix for Streamlit widgets.
+        label: Human-readable label shown alongside the widget.
+        desc: Short description of the expected data.
+
+    Returns:
+        Tuple of ``(uploaded_file_or_None, pasted_text_or_None)``.
     """
     mode = st.radio(
         "Input method",
@@ -87,20 +101,25 @@ def _input_widget(key: str, label: str, desc: str) -> tuple[Any, str | None]:
     return file_obj, pasted
 
 
+def _has_cached_df(key: str) -> bool:
+    """Return *True* if session state holds a non-empty DataFrame for *key*."""
+    cached = st.session_state.get(key)
+    return isinstance(cached, pd.DataFrame) and not cached.empty
+
+
 def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
-    """Render the upload panel.
+    """Render the upload panel (step 1).
 
-    Returns ``(files_dict, scheduler_config)``.
+    Returns:
+        Tuple of ``(files_dict, scheduler_config)`` where *files_dict* maps
+        source keys to uploaded file objects (may be ``None``).
     """
-    # ---- Intro ----
-
     # Clear cached data when "Use example data" is unchecked
-    # Must happen before columns render so tab indicators see the cleared state
-    _use_example_now = st.session_state.get("use_example_data", False)
-    if not _use_example_now and st.session_state.get("_prev_use_example", False):
-        for _src in _DATA_SOURCES:
-            st.session_state.pop(f"upload_{_src['key']}_df", None)
-    st.session_state["_prev_use_example"] = _use_example_now
+    use_example_now: bool = st.session_state.get("use_example_data", False)
+    if not use_example_now and st.session_state.get("_prev_use_example", False):
+        for src in _DATA_SOURCES:
+            st.session_state.pop(f"upload_{src['key']}_df", None)
+    st.session_state["_prev_use_example"] = use_example_now
 
     st.markdown(
         '<div class="hero-card">'
@@ -119,25 +138,23 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
 
     with col_left:
         tabs = st.tabs([s["label"] for s in _DATA_SOURCES])
-        for tab, source in zip(tabs, _DATA_SOURCES):
+        for tab, source in zip(tabs, _DATA_SOURCES, strict=True):
             with tab:
                 st.caption(source["desc"])
                 sources[source["key"]] = _input_widget(
                     source["key"], source["label"], source["desc"]
                 )
-                # Show indicator when previously loaded data is available
-                _cached_key = f"upload_{source['key']}_df"
-                _cached = st.session_state.get(_cached_key)
+                cached_key = f"upload_{source['key']}_df"
                 f_obj, p_txt = sources[source["key"]]
+                # Indicate when previously loaded data is still available
                 if (
-                    _cached is not None
-                    and isinstance(_cached, pd.DataFrame)
-                    and not _cached.empty
+                    _has_cached_df(cached_key)
                     and f_obj is None
                     and not (p_txt and p_txt.strip())
                 ):
+                    cached_df = st.session_state[cached_key]
                     st.success(
-                        f"Previously loaded data available ({len(_cached)} rows)"
+                        f"Previously loaded data available ({len(cached_df)} rows)"
                     )
 
     # ----- Config inputs -----
@@ -169,17 +186,16 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             )
 
         # Download sample data as zip
-        _EXAMPLE_DIR_DL = Path(__file__).resolve().parent.parent / "example_data"
-        _SAMPLE_FILES = [
-            ("heavy_games.csv", _EXAMPLE_DIR_DL / "heavy_games.csv"),
-            ("medium_games.csv", _EXAMPLE_DIR_DL / "medium_games.csv"),
-            ("timings.csv", _EXAMPLE_DIR_DL / "timings.csv"),
-            ("place.csv", _EXAMPLE_DIR_DL / "place.csv"),
+        sample_files = [
+            ("heavy_games.csv", _EXAMPLE_DIR / "heavy_games.csv"),
+            ("medium_games.csv", _EXAMPLE_DIR / "medium_games.csv"),
+            ("timings.csv", _EXAMPLE_DIR / "timings.csv"),
+            ("place.csv", _EXAMPLE_DIR / "place.csv"),
         ]
-        if all(p.exists() for _, p in _SAMPLE_FILES):
+        if all(p.exists() for _, p in sample_files):
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                for name, path in _SAMPLE_FILES:
+                for name, path in sample_files:
                     zf.writestr(name, path.read_text(encoding="utf-8"))
             buf.seek(0)
             st.download_button(
@@ -190,18 +206,16 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
                 use_container_width=True,
             )
 
-        # Upload progress
-        provided_count = 0
-        for src in _DATA_SOURCES:
-            _k = src["key"]
-            _f, _p = sources[_k]
-            if _f is not None or (_p and _p.strip()):
-                provided_count += 1
-            else:
-                _ck = f"upload_{_k}_df"
-                _cv = st.session_state.get(_ck)
-                if _cv is not None and isinstance(_cv, pd.DataFrame) and not _cv.empty:
-                    provided_count += 1
+        # Upload progress counter
+        provided_count = sum(
+            1
+            for src in _DATA_SOURCES
+            if (
+                sources[src["key"]][0] is not None
+                or (sources[src["key"]][1] and sources[src["key"]][1].strip())
+                or _has_cached_df(f"upload_{src['key']}_df")
+            )
+        )
         progress_color = (
             SUCCESS
             if provided_count == 4
@@ -224,16 +238,10 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
     # ----- Parse & validate -----
     all_errors: list[str] = []
 
-    _EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example_data"
-    _EXAMPLE_FILES = {
-        "heavy": _EXAMPLE_DIR / "heavy_games.csv",
-        "medium": _EXAMPLE_DIR / "medium_games.csv",
-        "timings": _EXAMPLE_DIR / "timings.csv",
-        "place": _EXAMPLE_DIR / "place.csv",
-    }
-
-    def _resolve(key: str, loader, *loader_args):
-        """Parse from file, pasted text, example data, or cached session data."""
+    def _resolve(
+        key: str, loader: Any, *loader_args: Any
+    ) -> tuple[pd.DataFrame, list[str]]:
+        """Parse from uploaded file, pasted text, example data, or session cache."""
         file_obj, pasted = sources[key]
         if file_obj is not None:
             file_obj.seek(0)
@@ -244,11 +252,9 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
                 return loader(sio, *loader_args)
         if use_example and _EXAMPLE_FILES[key].exists():
             return loader(str(_EXAMPLE_FILES[key]), *loader_args)
-        # Fall back to previously parsed data in session state
         session_key = f"upload_{key}_df"
-        cached = st.session_state.get(session_key)
-        if cached is not None and isinstance(cached, pd.DataFrame) and not cached.empty:
-            return cached, []
+        if _has_cached_df(session_key):
+            return st.session_state[session_key], []
         return pd.DataFrame(), []
 
     heavy_df, errs = _resolve("heavy", load_game_csv, "heavy")
@@ -261,17 +267,15 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
     all_errors.extend(errs)
 
     # Cross-file validation (only when all four are provided)
-    uploaded_count = sum(
-        1 for df in (heavy_df, medium_df, timings_df, place_df) if not df.empty
-    )
+    all_dfs = (heavy_df, medium_df, timings_df, place_df)
+    uploaded_count = sum(1 for df in all_dfs if not df.empty)
     all_warnings: list[str] = []
     if uploaded_count == 4:
         all_warnings = validate_cross_files(heavy_df, medium_df, timings_df, place_df)
 
     # ----- Feedback -----
-    if all_errors:
-        for err in all_errors:
-            st.error(err)
+    for err in all_errors:
+        st.error(err)
     if all_warnings:
         with st.expander(f"{len(all_warnings)} warning(s)", expanded=False):
             for w in all_warnings:

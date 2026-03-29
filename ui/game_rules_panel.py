@@ -1,4 +1,4 @@
-"""Step 2 - Game Rules Editor.
+"""Step 2 — Game Rules Editor.
 
 Displays an editable table (one row per discovered game) where the user
 can set min/max players, owner, allowed days, and location lock.
@@ -8,15 +8,27 @@ reset-to-defaults buttons.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import streamlit as st
 
-from models.entities import Game
-from ui.styles import PRIMARY, ACCENT, TEXT_SEC
+from ui.styles import TEXT_SEC
+from models.entities import Game, Location, Player, Slot
+
+_DAY_ORDER = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+]
 
 
-def _values_differ(a, b) -> bool:
-    """Safely compare two scalar values, handling NaN and type differences."""
+def _values_differ(a: Any, b: Any) -> bool:
+    """Safely compare two scalar values, handling ``NaN`` and type mismatches."""
     if pd.isna(a) and pd.isna(b):
         return False
     if pd.isna(a) or pd.isna(b):
@@ -25,7 +37,7 @@ def _values_differ(a, b) -> bool:
 
 
 def _game_differs(current: Game | None, original: Game | None) -> bool:
-    """Return True if any editable field differs between two Game objects."""
+    """Return *True* if any editable field differs between two ``Game`` objects."""
     if current is None or original is None:
         return current is not original
     return (
@@ -37,24 +49,31 @@ def _game_differs(current: Game | None, original: Game | None) -> bool:
     )
 
 
+def _day_sort_key(day: str) -> int:
+    """Return a sort index for *day* so weekdays appear in calendar order."""
+    try:
+        return _DAY_ORDER.index(day)
+    except ValueError:
+        return 99
+
+
 def render_game_rules(
     games: dict[str, Game],
-    players: dict,
-    slots: dict,
-    locations: dict,
+    players: dict[str, Player],
+    slots: dict[str, Slot],
+    locations: dict[str, Location],
     original_games: dict[str, Game] | None = None,
 ) -> dict[str, Game]:
     """Render the Game Rules editor and return the updated ``games`` dict.
 
-    Parameters
-    ----------
-    games:
-        Current game rules (may include prior user edits).
-    original_games:
-        The auto-detected defaults used for visual diff comparison
-        and the Reset buttons.  Falls back to *games* if not provided.
+    Args:
+        games: Current game rules (may include prior user edits).
+        players: All known players keyed by id.
+        slots: All discovered time slots.
+        locations: All discovered locations.
+        original_games: Auto-detected defaults for visual diff comparison
+            and the *Reset* buttons.  Falls back to *games* when ``None``.
     """
-
     if original_games is None:
         original_games = games
 
@@ -78,57 +97,32 @@ def render_game_rules(
             st.session_state.pop("rules_games", None)
             st.rerun()
 
-    player_names = sorted(players.keys())
-    location_names = sorted(locations.keys())
+    player_names = sorted(players)
+    location_names = sorted(locations)
     discovered_days = sorted(
         {s.day for s in slots.values()},
-        key=lambda d: (
-            [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday",
-            ].index(d)
-            if d
-            in [
-                "Monday",
-                "Tuesday",
-                "Wednesday",
-                "Thursday",
-                "Friday",
-                "Saturday",
-                "Sunday",
-            ]
-            else 99
-        ),
+        key=_day_sort_key,
     )
 
-    # Build rows for the editor DataFrame (these are the defaults)
-    rows: list[dict] = []
-    for gid in sorted(games.keys()):
+    # Build rows for the editor DataFrame
+    rows: list[dict[str, Any]] = []
+    for gid in sorted(games):
         g = games[gid]
-        row: dict = {
+        row: dict[str, Any] = {
             "Game Name": gid,
             "Weight Class": g.weight_class.capitalize(),
             "Min Players": g.min_players,
             "Max Players": g.max_players,
-            "Owner": g.owner if g.owner else "None",
-            "Location": g.location_lock if g.location_lock else "Any",
+            "Owner": g.owner or "None",
+            "Location": g.location_lock or "Any",
         }
         for day in discovered_days:
-            if g.allowed_days is not None:
-                row[day] = day in g.allowed_days
-            else:
-                row[day] = True
+            row[day] = day in g.allowed_days if g.allowed_days is not None else True
         rows.append(row)
 
     edit_df = pd.DataFrame(rows)
 
-    # Column configuration
-    column_config: dict = {
+    column_config: dict[str, Any] = {
         "Game Name": st.column_config.TextColumn("Game Name", disabled=True),
         "Weight Class": st.column_config.TextColumn("Weight Class", disabled=True),
         "Min Players": st.column_config.NumberColumn(
@@ -159,23 +153,20 @@ def render_game_rules(
     # ------------------------------------------------------------------
     # Visual diff: compare the *edited* output against original defaults
     # ------------------------------------------------------------------
-    # Build a reference DataFrame from original_games for comparison
-    orig_rows: list[dict] = []
-    for gid in sorted(original_games.keys()):
+    # Build reference DataFrame from original_games for comparison
+    orig_rows: list[dict[str, Any]] = []
+    for gid in sorted(original_games):
         og = original_games[gid]
-        orow: dict = {
+        orow: dict[str, Any] = {
             "Game Name": gid,
             "Weight Class": og.weight_class.capitalize(),
             "Min Players": og.min_players,
             "Max Players": og.max_players,
-            "Owner": og.owner if og.owner else "None",
-            "Location": og.location_lock if og.location_lock else "Any",
+            "Owner": og.owner or "None",
+            "Location": og.location_lock or "Any",
         }
         for day in discovered_days:
-            if og.allowed_days is not None:
-                orow[day] = day in og.allowed_days
-            else:
-                orow[day] = True
+            orow[day] = day in og.allowed_days if og.allowed_days is not None else True
         orig_rows.append(orow)
 
     orig_df = pd.DataFrame(orig_rows)
@@ -228,28 +219,23 @@ def render_game_rules(
                     st.session_state.pop("rules_editor", None)
                     st.rerun()
 
-    # ------------------------------------------------------------------
     # Convert edited table back to Game objects
-    # ------------------------------------------------------------------
     updated_games: dict[str, Game] = {}
     for _, row in edited.iterrows():
-        gid = row["Game Name"]
+        gid: str = row["Game Name"]
         original = games.get(gid)
         weight = original.weight_class if original else "medium"
 
-        owner = row["Owner"]
+        owner: str | None = row["Owner"]
         if owner == "None" or pd.isna(owner):
             owner = None
 
-        loc = row["Location"]
+        loc: str | None = row["Location"]
         if loc == "Any" or pd.isna(loc):
             loc = None
 
-        allowed: set[str] = set()
-        for day in discovered_days:
-            if row.get(day, True):
-                allowed.add(day)
-        # If all days selected, treat as no restriction
+        allowed = {day for day in discovered_days if row.get(day, True)}
+        # All days selected ⇒ no restriction
         allowed_days = allowed if len(allowed) < len(discovered_days) else None
 
         updated_games[gid] = Game(

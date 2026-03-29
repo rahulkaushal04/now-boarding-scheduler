@@ -1,17 +1,20 @@
-"""Step 4 — Insights & Analytics.
+"""Step 4 — Insights & Analytics dashboard.
 
-All charts use ``plotly_dark`` template + brand colours.
+Renders seven analytic sections using Plotly charts and Streamlit
+metrics: game demand ranking, demand heatmap, conflict matrix,
+player coverage, location demand split, unviable games, and time-slot
+density.  All charts use the ``plotly_dark`` template with brand colours.
 """
 
 from __future__ import annotations
 
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
 
-from models.entities import CandidateSession, Game, Player
-from ui.styles import PRIMARY, ACCENT, ALERT, SUCCESS, TEXT_SEC, SURFACE, SURFACE_RAISED
+from ui.styles import ACCENT, ALERT, PRIMARY, SUCCESS, SURFACE_RAISED
+from models.entities import CandidateSession, Game, Location, Player, Slot
 
 
 def render_insights(
@@ -20,19 +23,28 @@ def render_insights(
     games: dict[str, Game],
     demand_matrix: dict[str, set[str]],
     conflict_matrix: dict[tuple[str, str], int],
-    slots: dict,
-    locations: dict,
-    overlap_map: dict,
+    slots: dict[str, Slot],
+    locations: dict[str, Location],
+    overlap_map: dict[tuple[str, str, str], set[str]],
 ) -> None:
-    """Render the full analytics / insights dashboard."""
+    """Render the full analytics / insights dashboard.
+
+    Args:
+        candidates: All candidate sessions (viable and non-viable).
+        players: Player objects keyed by id.
+        games: Game objects keyed by id.
+        demand_matrix: Mapping from game id to the set of interested player ids.
+        conflict_matrix: Mapping from ``(game_a, game_b)`` to shared-player count.
+        slots: Slot objects keyed by id (order preserved from CSV).
+        locations: Location objects keyed by id.
+        overlap_map: ``(game, slot, location) → eligible players`` mapping.
+    """
     st.header("Insights & Analytics")
 
     viable = [c for c in candidates if c.viable]
     non_viable = [c for c in candidates if not c.viable]
 
-    # ------------------------------------------------------------------ #
     # 1. Game Demand Ranking — bar chart
-    # ------------------------------------------------------------------ #
     st.subheader("Game Demand Ranking")
     demand_rows = [
         {"Game": g, "Interested Players": len(pset)}
@@ -57,34 +69,33 @@ def render_insights(
         )
         st.plotly_chart(fig, width="stretch")
 
-    # ------------------------------------------------------------------ #
     # 2. Demand Heatmap — Game × Time Slot (summed across locations)
-    # ------------------------------------------------------------------ #
     st.subheader("Demand Heatmap")
 
-    # Preserve CSV column order for slots (chronological)
-    slot_ids = list(slots.keys())
+    slot_ids = list(slots)
+    location_ids = list(locations)
 
     # Order games by total demand (highest first)
     game_demand_totals: dict[str, int] = {}
     for gid in games:
-        total = 0
-        for sid in slot_ids:
-            for lid in locations:
-                total += len(overlap_map.get((gid, sid, lid), set()))
-        game_demand_totals[gid] = total
-    game_ids = sorted(games.keys(), key=lambda g: game_demand_totals.get(g, 0))
+        game_demand_totals[gid] = sum(
+            len(overlap_map.get((gid, sid, lid), set()))
+            for sid in slot_ids
+            for lid in location_ids
+        )
+    game_ids = sorted(games, key=lambda g: game_demand_totals.get(g, 0))
 
-    # Build raw counts matrix
+    # Build counts matrix
     raw_data: list[list[int]] = []
     for gid in game_ids:
-        row: list[int] = []
-        for sid in slot_ids:
-            total = 0
-            for lid in locations:
-                total += len(overlap_map.get((gid, sid, lid), set()))
-            row.append(total)
-        raw_data.append(row)
+        raw_data.append(
+            [
+                sum(
+                    len(overlap_map.get((gid, sid, lid), set())) for lid in location_ids
+                )
+                for sid in slot_ids
+            ]
+        )
 
     if raw_data:
         display_data = [[float(v) for v in row] for row in raw_data]
@@ -115,9 +126,7 @@ def render_insights(
         )
         st.plotly_chart(fig_hm, width="stretch")
 
-    # ------------------------------------------------------------------ #
     # 3. Conflict Matrix
-    # ------------------------------------------------------------------ #
     st.subheader("Conflict Matrix (Shared Players)")
     if conflict_matrix:
         all_game_ids = sorted({g for pair in conflict_matrix for g in pair})
@@ -144,21 +153,18 @@ def render_insights(
         )
         st.plotly_chart(fig_cm, width="stretch")
 
-    # ------------------------------------------------------------------ #
     # 4. Player Coverage
-    # ------------------------------------------------------------------ #
     st.subheader("Player Coverage")
     selected_sessions: list[CandidateSession] = st.session_state.get(
         "engine_selected", []
     )
-    covered_players: set[str] = set()
-    for s in selected_sessions:
-        if s.viable:
-            covered_players.update(s.eligible_players)
+    covered_players = {
+        pid for s in selected_sessions if s.viable for pid in s.eligible_players
+    }
 
     covered_count = len(covered_players)
     total_count = len(players)
-    uncovered = sorted(set(players.keys()) - covered_players)
+    uncovered = sorted(players.keys() - covered_players)
 
     col1, col2 = st.columns(2)
     col1.metric("Covered", f"{covered_count} / {total_count}")
@@ -167,12 +173,10 @@ def render_insights(
         with st.expander("Uncovered players"):
             st.write(", ".join(uncovered))
 
-    # ------------------------------------------------------------------ #
     # 5. Location Split — donut chart
-    # ------------------------------------------------------------------ #
     st.subheader("Location Demand Split")
     loc_counts: dict[str, int] = {}
-    for pid, player in players.items():
+    for player in players.values():
         for loc in player.location_prefs:
             loc_counts[loc] = loc_counts.get(loc, 0) + 1
 
@@ -191,9 +195,7 @@ def render_insights(
         )
         st.plotly_chart(fig_loc, width="stretch")
 
-    # ------------------------------------------------------------------ #
     # 6. Unviable Games
-    # ------------------------------------------------------------------ #
     st.subheader("Unviable Games")
     if non_viable:
         # De-duplicate by (game, reason)
@@ -220,19 +222,19 @@ def render_insights(
     else:
         st.success("All candidates are viable!")
 
-    # ------------------------------------------------------------------ #
     # 7. Time Slot Density — bar chart
-    # ------------------------------------------------------------------ #
     st.subheader("Time Slot Density (Available Players)")
-    slot_player_counts: dict[str, int] = {}
-    for sid in slots:
-        available = {pid for pid, p in players.items() if sid in p.time_availability}
-        slot_player_counts[sid] = len(available)
+    slot_player_counts: dict[str, int] = {
+        sid: sum(1 for p in players.values() if sid in p.time_availability)
+        for sid in slots
+    }
 
     if slot_player_counts:
-        # Preserve CSV column order (chronological)
         sdf = pd.DataFrame(
-            [{"Slot": s, "Available Players": slot_player_counts[s]} for s in slots]
+            [
+                {"Slot": sid, "Available Players": cnt}
+                for sid, cnt in slot_player_counts.items()
+            ]
         )
         fig_slot = px.bar(
             sdf,

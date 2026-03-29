@@ -1,6 +1,6 @@
 """Public model exports."""
 
-from .config import SchedulerConfig
+from .config_model import SchedulerConfig
 from .entities import (
     CandidateSession,
     Game,

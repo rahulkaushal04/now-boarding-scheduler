@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Domain entities for the scheduler: players, games, slots, and sessions."""
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,8 +29,7 @@ class Player:
 class Game:
     id: str
     weight_class: str  # "heavy" | "medium"
-    min_players: int = 2
-    max_players: int = 5
+    min_players: int = 1
     owner: str | None = None
     allowed_days: set[str] | None = None
     location_lock: str | None = None
@@ -41,7 +40,6 @@ class Game:
             "id": self.id,
             "weight_class": self.weight_class,
             "min_players": self.min_players,
-            "max_players": self.max_players,
             "owner": self.owner,
             "allowed_days": sorted(self.allowed_days) if self.allowed_days else None,
             "location_lock": self.location_lock,
@@ -99,6 +97,16 @@ class CandidateSession:
     viable: bool = True
     rejection_reason: str | None = None
     reasoning: SessionReasoning | None = None
+    is_overflow: bool = False
+    suggestion_reason: str | None = None
+
+
+@dataclass(slots=True)
+class SelectionResult:
+    """Return type for the session selection process."""
+
+    selected: list[CandidateSession] = field(default_factory=list)
+    suggestions: list[CandidateSession] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize candidate session."""

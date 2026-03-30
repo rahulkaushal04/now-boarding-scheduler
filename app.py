@@ -6,8 +6,6 @@ Manages session state, orchestrates entity construction from uploaded
 CSV data, and drives the scoring / selection / explanation engine.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 import pandas as pd
@@ -61,6 +59,7 @@ _REQUIRED_UPLOAD_KEYS = (
 _ENGINE_CACHE_KEYS = (
     "engine_candidates",
     "engine_selected",
+    "engine_suggestions",
     "engine_demand_matrix",
     "engine_conflict_matrix",
     "engine_overlap_map",
@@ -113,9 +112,12 @@ def _build_entities() -> None:
     timings_df: pd.DataFrame = st.session_state["upload_timings_df"]
     place_df: pd.DataFrame = st.session_state["upload_place_df"]
 
+    config: SchedulerConfig = _get_state("scheduler_config", SchedulerConfig())
     players = build_players(heavy_df, medium_df, timings_df, place_df)
     st.session_state["entity_players"] = players
-    st.session_state["entity_games"] = build_games(heavy_df, medium_df, players)
+    st.session_state["entity_games"] = build_games(
+        heavy_df, medium_df, players, config.default_min_players
+    )
     st.session_state["entity_slots"] = build_slots(timings_df)
     st.session_state["entity_locations"] = build_locations(place_df)
 
@@ -137,19 +139,20 @@ def _run_engine() -> None:
         candidates = score_all_candidates(
             overlap_map, games, demand_matrix, slots, locations, all_player_ids
         )
-        selected = select_sessions(candidates, config, conflict_matrix, all_player_ids)
+        result = select_sessions(candidates, config, conflict_matrix, all_player_ids)
 
         covered: set[str] = set()
-        for rank, sess in enumerate(selected, 1):
+        for rank, sess in enumerate(result.selected, 1):
             sess.reasoning = explain_candidate(
-                sess, demand_matrix, all_player_ids, covered, games, rank
+                sess, demand_matrix, covered, games, rank
             )
             covered.update(sess.eligible_players)
 
-        add_conflict_notes(selected, conflict_matrix)
+        add_conflict_notes(result.selected)
 
     st.session_state["engine_candidates"] = candidates
-    st.session_state["engine_selected"] = selected
+    st.session_state["engine_selected"] = result.selected
+    st.session_state["engine_suggestions"] = result.suggestions
     st.session_state["engine_demand_matrix"] = demand_matrix
     st.session_state["engine_conflict_matrix"] = conflict_matrix
     st.session_state["engine_overlap_map"] = overlap_map
@@ -164,7 +167,7 @@ _step_indicator()
 step: int = st.session_state["step"]
 
 if step == 1:
-    _files, config = render_upload_section()
+    _, config = render_upload_section()
     st.session_state["scheduler_config"] = config
 
     if _has_required_uploads():
@@ -188,9 +191,7 @@ elif step == 2:
     slots = _get_state("entity_slots", {})
     locations = _get_state("entity_locations", {})
 
-    st.session_state["rules_games"] = render_game_rules(
-        games, players, slots, locations, original_games
-    )
+    render_game_rules(games, players, slots, locations, original_games)
 
     col_back, col_next = st.columns([1, 1])
     with col_back:
@@ -214,6 +215,7 @@ elif step == 3:
         _get_state("rules_games", st.session_state["entity_games"]),
         st.session_state["engine_candidates"],
         st.session_state["entity_slots"],
+        st.session_state.get("engine_suggestions", []),
     )
 
     st.divider()

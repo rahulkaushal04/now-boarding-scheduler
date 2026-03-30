@@ -12,8 +12,8 @@ from engine.scorer import score_all_candidates
 def simple_scenario():
     """Minimal scenario: 2 games, 1 slot, 1 location, 3 players."""
     games = {
-        "GameA": Game(id="GameA", weight_class="heavy", min_players=2, max_players=4),
-        "GameB": Game(id="GameB", weight_class="medium", min_players=2, max_players=4),
+        "GameA": Game(id="GameA", weight_class="heavy", min_players=2),
+        "GameB": Game(id="GameB", weight_class="medium", min_players=2),
     }
     slots = {"Tue 6 PM": Slot(id="Tue 6 PM", day="Tuesday", time="6 PM")}
     locations = {"HSR": Location(id="HSR")}

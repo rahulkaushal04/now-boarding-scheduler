@@ -1,17 +1,12 @@
-# Type aliases
-PlayerId = str
-GameId = str
-SlotId = str
-LocationId = str
+"""Global configuration: constants and scoring weights."""
 
-# Constants
-VOTE_MARKER = "\u2713"  # ✓ (Unicode U+2713)
-EXCLUDED_COLUMNS = {"Name", "Total"}
+VOTE_MARKER: str = "\u2713"  # ✓ (Unicode U+2713)
+EXCLUDED_COLUMNS: frozenset[str] = frozenset({"Name", "Total"})
 
 # Internal scoring weights (not UI-exposed)
-W_DEMAND = 0.40
-W_DIVERSITY = 0.20
-W_COVERAGE = 0.20
-W_POPULARITY = 0.10
-W_AVAILABILITY = 0.05
-W_LOCATION = 0.05
+W_DEMAND: float = 0.30
+W_DIVERSITY: float = 0.10
+W_COVERAGE: float = 0.30
+W_POPULARITY: float = 0.10
+W_AVAILABILITY: float = 0.15
+W_LOCATION: float = 0.05

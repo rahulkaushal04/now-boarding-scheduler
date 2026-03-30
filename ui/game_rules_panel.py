@@ -6,8 +6,6 @@ Includes visual diff indicators for changed games and per-game / global
 reset-to-defaults buttons.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 import pandas as pd
@@ -42,7 +40,6 @@ def _game_differs(current: Game | None, original: Game | None) -> bool:
         return current is not original
     return (
         current.min_players != original.min_players
-        or current.max_players != original.max_players
         or current.owner != original.owner
         or current.allowed_days != original.allowed_days
         or current.location_lock != original.location_lock
@@ -57,14 +54,22 @@ def _day_sort_key(day: str) -> int:
         return 99
 
 
+@st.fragment
 def render_game_rules(
     games: dict[str, Game],
     players: dict[str, Player],
     slots: dict[str, Slot],
     locations: dict[str, Location],
     original_games: dict[str, Game] | None = None,
-) -> dict[str, Game]:
-    """Render the Game Rules editor and return the updated ``games`` dict.
+) -> None:
+    """Render the Game Rules editor.
+
+    Updated games are stored directly in
+    ``st.session_state["rules_games"]``.
+
+    Decorated with ``@st.fragment`` so that data-editor interactions
+    (checkbox toggles, dropdowns, etc.) only re-render this section
+    instead of the full page, which prevents scroll-to-top jumps.
 
     Args:
         games: Current game rules (may include prior user edits).
@@ -95,7 +100,7 @@ def render_game_rules(
         if st.button("Reset All to Defaults", type="secondary"):
             st.session_state.pop("rules_editor", None)
             st.session_state.pop("rules_games", None)
-            st.rerun()
+            st.rerun(scope="app")
 
     player_names = sorted(players)
     location_names = sorted(locations)
@@ -104,15 +109,14 @@ def render_game_rules(
         key=_day_sort_key,
     )
 
-    # Build rows for the editor DataFrame
+    # Build from original_games so the base DataFrame stays stable across reruns.
     rows: list[dict[str, Any]] = []
-    for gid in sorted(games):
-        g = games[gid]
+    for gid in sorted(original_games):
+        g = original_games[gid]
         row: dict[str, Any] = {
             "Game Name": gid,
             "Weight Class": g.weight_class.capitalize(),
             "Min Players": g.min_players,
-            "Max Players": g.max_players,
             "Owner": g.owner or "None",
             "Location": g.location_lock or "Any",
         }
@@ -127,9 +131,6 @@ def render_game_rules(
         "Weight Class": st.column_config.TextColumn("Weight Class", disabled=True),
         "Min Players": st.column_config.NumberColumn(
             "Min Players", min_value=1, max_value=20
-        ),
-        "Max Players": st.column_config.NumberColumn(
-            "Max Players", min_value=1, max_value=20
         ),
         "Owner": st.column_config.SelectboxColumn(
             "Owner", options=["None"] + player_names, required=True
@@ -161,7 +162,6 @@ def render_game_rules(
             "Game Name": gid,
             "Weight Class": og.weight_class.capitalize(),
             "Min Players": og.min_players,
-            "Max Players": og.max_players,
             "Owner": og.owner or "None",
             "Location": og.location_lock or "Any",
         }
@@ -217,13 +217,13 @@ def render_game_rules(
                         rules[gname] = original_games[gname]
                         st.session_state["rules_games"] = rules
                     st.session_state.pop("rules_editor", None)
-                    st.rerun()
+                    st.rerun(scope="app")
 
     # Convert edited table back to Game objects
     updated_games: dict[str, Game] = {}
     for _, row in edited.iterrows():
         gid: str = row["Game Name"]
-        original = games.get(gid)
+        original = original_games.get(gid) or games.get(gid)
         weight = original.weight_class if original else "medium"
 
         owner: str | None = row["Owner"]
@@ -242,10 +242,9 @@ def render_game_rules(
             id=gid,
             weight_class=weight,
             min_players=int(row["Min Players"]),
-            max_players=int(row["Max Players"]),
             owner=owner,
             allowed_days=allowed_days,
             location_lock=loc,
         )
 
-    return updated_games
+    st.session_state["rules_games"] = updated_games

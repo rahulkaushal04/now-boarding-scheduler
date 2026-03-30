@@ -5,8 +5,6 @@ Provides ``render_upload_section`` which presents four tabbed data inputs
 sidebar.  Parsed DataFrames are validated and stored in session state.
 """
 
-from __future__ import annotations
-
 import io
 import zipfile
 from typing import Any
@@ -59,13 +57,12 @@ def _parse_pasted_csv(text: str) -> io.StringIO | None:
     return io.StringIO(stripped) if stripped else None
 
 
-def _input_widget(key: str, label: str, desc: str) -> tuple[Any, str | None]:
+def _input_widget(key: str, label: str) -> tuple[Any, str | None]:
     """Render a compact input that supports file upload **or** pasted CSV.
 
     Args:
         key: Unique key prefix for Streamlit widgets.
         label: Human-readable label shown alongside the widget.
-        desc: Short description of the expected data.
 
     Returns:
         Tuple of ``(uploaded_file_or_None, pasted_text_or_None)``.
@@ -141,9 +138,7 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
         for tab, source in zip(tabs, _DATA_SOURCES, strict=True):
             with tab:
                 st.caption(source["desc"])
-                sources[source["key"]] = _input_widget(
-                    source["key"], source["label"], source["desc"]
-                )
+                sources[source["key"]] = _input_widget(source["key"], source["label"])
                 cached_key = f"upload_{source['key']}_df"
                 f_obj, p_txt = sources[source["key"]]
                 # Indicate when previously loaded data is still available
@@ -165,12 +160,30 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             unsafe_allow_html=True,
         )
         max_repeats = st.number_input(
-            "Max times a game can be scheduled per week",
+            "How many times can a game repeat in a week?",
             min_value=1,
-            max_value=3,
-            value=1,
+            max_value=5,
+            value=2,
             key="config_max_repeats",
-            help="How many times the same game can appear in one week.",
+            help="A popular game can be scheduled up to this many times across the week.",
+        )
+
+        default_min_players = st.number_input(
+            "Minimum players to run a game",
+            min_value=1,
+            max_value=5,
+            value=1,
+            key="config_default_min_players",
+            help="A game needs at least this many players to be scheduled.",
+        )
+
+        max_tables = st.number_input(
+            "Max games at the same time and place",
+            min_value=1,
+            max_value=4,
+            value=2,
+            key="config_max_tables",
+            help="How many tables can run at the same time slot and location.",
         )
 
         use_example = st.checkbox(
@@ -233,6 +246,8 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
 
     config = SchedulerConfig(
         max_repeats_per_week=int(max_repeats),
+        default_min_players=int(default_min_players),
+        max_tables_per_slot=int(max_tables),
     )
 
     # ----- Parse & validate -----

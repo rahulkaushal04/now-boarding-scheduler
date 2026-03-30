@@ -28,28 +28,27 @@ def context():
         "Kanban EV": Game(id="Kanban EV", weight_class="heavy", owner="Kiran"),
         "Scythe": Game(id="Scythe", weight_class="medium"),
     }
-    all_players = {"Alice", "Kiran", "Bob", "Carol"}
-    covered = set()
-    return candidate, demand_matrix, all_players, covered, games
+    covered: set[str] = set()
+    return candidate, demand_matrix, covered, games
 
 
 class TestExplainCandidate:
     def test_reasoning_generated(self, context):
-        candidate, demand, all_p, covered, games = context
-        reasoning = explain_candidate(candidate, demand, all_p, covered, games, rank=1)
+        candidate, demand, covered, games = context
+        reasoning = explain_candidate(candidate, demand, covered, games, rank=1)
         assert isinstance(reasoning, SessionReasoning)
         assert "Kanban EV" in reasoning.demand_reason
         assert "3" in reasoning.overlap_reason
         assert "Ranked #1" in reasoning.selection_reason
 
     def test_owner_mentioned(self, context):
-        candidate, demand, all_p, covered, games = context
-        reasoning = explain_candidate(candidate, demand, all_p, covered, games)
+        candidate, demand, covered, games = context
+        reasoning = explain_candidate(candidate, demand, covered, games)
         assert "Kiran" in reasoning.selection_reason
 
     def test_highest_demand_label(self, context):
-        candidate, demand, all_p, covered, games = context
-        reasoning = explain_candidate(candidate, demand, all_p, covered, games)
+        candidate, demand, covered, games = context
+        reasoning = explain_candidate(candidate, demand, covered, games)
         assert "highest demand" in reasoning.demand_reason
 
 
@@ -77,7 +76,7 @@ class TestAddConflictNotes:
                 demand_reason="", overlap_reason="", selection_reason=""
             ),
         )
-        add_conflict_notes([s1, s2], {})
+        add_conflict_notes([s1, s2])
         assert s1.reasoning.conflict_note is not None
         assert "Shares 1 player" in s1.reasoning.conflict_note
 
@@ -104,5 +103,5 @@ class TestAddConflictNotes:
                 demand_reason="", overlap_reason="", selection_reason=""
             ),
         )
-        add_conflict_notes([s1, s2], {})
+        add_conflict_notes([s1, s2])
         assert s1.reasoning.conflict_note is None

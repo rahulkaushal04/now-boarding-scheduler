@@ -2,11 +2,9 @@
 
 All brand colours are defined as module-level constants.  ``inject_custom_css``
 pushes the shared stylesheet into every Streamlit page, while the
-``*_badge_html`` / ``score_bar_html`` helpers produce small HTML fragments
+``badge_html`` / ``weight_badge_html`` helpers produce small HTML fragments
 used throughout the UI panels.
 """
-
-from __future__ import annotations
 
 import html as _html
 
@@ -14,10 +12,8 @@ import streamlit as st
 
 # Colour palette
 PRIMARY = "#00D4AA"
-PRIMARY_MUTED = "#00A88A"
 ACCENT = "#FFB830"
 ALERT = "#FF6B6B"
-WARNING = "#FFA726"
 SUCCESS = "#69F0AE"
 SURFACE = "#1B1F27"
 SURFACE_RAISED = "#262B36"
@@ -26,9 +22,6 @@ BG = "#0E1117"
 TEXT = "#E6E6E6"
 TEXT_SEC = "#9CA3AF"
 TEXT_MUTED = "#6B7280"
-
-HEAVY_COLOR = PRIMARY
-MEDIUM_COLOR = ACCENT
 
 
 def inject_custom_css() -> None:
@@ -416,24 +409,52 @@ def inject_custom_css() -> None:
             color: #6B7280;
             font-size: 0.95em;
         }
+
+        /* ---- Suggestion card (compact) ---- */
+        .suggest-card {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            margin-bottom: 0.4rem;
+        }
+
+        /* ---- Non-viable: grouped by reason ---- */
+        .nv-scroll-container {
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+        .nv-group {
+            background: #1B1F27;
+            border: 1px solid #2D333B;
+            border-left: 3px solid #FF6B6B;
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .nv-group-reason {
+            color: #FF6B6B;
+            font-size: 0.84em;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+        .nv-group-games {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .nv-chip {
+            background: rgba(255, 107, 107, 0.08);
+            color: #E6E6E6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
         </style>
         """,
         unsafe_allow_html=True,
-    )
-
-
-def score_bar_html(score: float) -> str:
-    """Return HTML for a horizontal score bar.
-
-    Args:
-        score: Value in [0, 1] mapped to 0–100 %.
-    """
-    pct = max(0.0, min(100.0, score * 100))
-    return (
-        f'<div class="score-bar">'
-        f'<div class="score-fill" style="width:{pct:.0f}%"></div>'
-        f"</div>"
-        f'<span style="color:{TEXT_SEC};font-size:0.85em">{pct:.0f}%</span>'
     )
 
 

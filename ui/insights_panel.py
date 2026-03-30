@@ -6,8 +6,6 @@ player coverage, location demand split, unviable games, and time-slot
 density.  All charts use the ``plotly_dark`` template with brand colours.
 """
 
-from __future__ import annotations
-
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -126,34 +124,7 @@ def render_insights(
         )
         st.plotly_chart(fig_hm, width="stretch")
 
-    # 3. Conflict Matrix
-    st.subheader("Conflict Matrix (Shared Players)")
-    if conflict_matrix:
-        all_game_ids = sorted({g for pair in conflict_matrix for g in pair})
-        matrix: list[list[int]] = []
-        for g1 in all_game_ids:
-            row = [conflict_matrix.get((g1, g2), 0) for g2 in all_game_ids]
-            matrix.append(row)
-
-        fig_cm = go.Figure(
-            data=go.Heatmap(
-                z=matrix,
-                x=all_game_ids,
-                y=all_game_ids,
-                colorscale=[[0, SURFACE_RAISED], [0.5, ACCENT], [1, ALERT]],
-                hovertemplate="Game 1: %{y}<br>Game 2: %{x}<br>Shared: %{z}<extra></extra>",
-            )
-        )
-        fig_cm.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=10, b=0),
-            height=max(400, len(all_game_ids) * 30),
-        )
-        st.plotly_chart(fig_cm, width="stretch")
-
-    # 4. Player Coverage
+    # 3. Player Coverage
     st.subheader("Player Coverage")
     selected_sessions: list[CandidateSession] = st.session_state.get(
         "engine_selected", []
@@ -195,7 +166,7 @@ def render_insights(
         )
         st.plotly_chart(fig_loc, width="stretch")
 
-    # 6. Unviable Games
+    # 5. Unviable Games
     st.subheader("Unviable Games")
     if non_viable:
         # De-duplicate by (game, reason)
@@ -221,32 +192,3 @@ def render_insights(
         st.dataframe(reasons_df, width="stretch", hide_index=True)
     else:
         st.success("All candidates are viable!")
-
-    # 7. Time Slot Density — bar chart
-    st.subheader("Time Slot Density (Available Players)")
-    slot_player_counts: dict[str, int] = {
-        sid: sum(1 for p in players.values() if sid in p.time_availability)
-        for sid in slots
-    }
-
-    if slot_player_counts:
-        sdf = pd.DataFrame(
-            [
-                {"Slot": sid, "Available Players": cnt}
-                for sid, cnt in slot_player_counts.items()
-            ]
-        )
-        fig_slot = px.bar(
-            sdf,
-            x="Slot",
-            y="Available Players",
-            color_discrete_sequence=[PRIMARY],
-            template="plotly_dark",
-        )
-        fig_slot.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=10, b=0),
-            height=300,
-        )
-        st.plotly_chart(fig_slot, width="stretch")

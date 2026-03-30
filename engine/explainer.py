@@ -1,9 +1,4 @@
-"""Explainability layer — human-readable reasoning traces.
-
-Zero Streamlit imports.  Pure Python.
-"""
-
-from __future__ import annotations
+"""Explainability layer — human-readable reasoning traces for candidates."""
 
 from models.entities import CandidateSession, Game, SessionReasoning
 
@@ -11,20 +6,30 @@ from models.entities import CandidateSession, Game, SessionReasoning
 def explain_candidate(
     candidate: CandidateSession,
     demand_matrix: dict[str, set[str]],
-    all_players: set[str],
     covered_players: set[str],
     games: dict[str, Game],
     rank: int | None = None,
 ) -> SessionReasoning:
-    """Generate a human-readable reasoning trace for *candidate*."""
-    total_interested = len(demand_matrix.get(candidate.game, set()))
+    """Generate a human-readable reasoning trace for a scored candidate.
 
+    Args:
+        candidate: The candidate session to explain.
+        demand_matrix: Mapping of game to interested players.
+        covered_players: Players already assigned to a session.
+        games: Mapping of game ID to Game object.
+        rank: Optional rank position in the candidate list.
+
+    Returns:
+        SessionReasoning with demand, overlap, and selection explanations.
+    """
+    interested = demand_matrix.get(candidate.game, set())
+    total_interested = len(interested)
+    max_demand = max((len(s) for s in demand_matrix.values()), default=0)
     # --- Demand reason ---
     demand_reason = (
         f"{candidate.game} has {total_interested} interested "
         f"player{'s' if total_interested != 1 else ''}"
     )
-    max_demand = max((len(s) for s in demand_matrix.values()), default=0)
     if total_interested == max_demand and total_interested > 0:
         demand_reason += " \u2014 highest demand this week"
     elif max_demand > 0 and total_interested >= max_demand * 0.7:
@@ -61,10 +66,13 @@ def explain_candidate(
 
 def add_conflict_notes(
     selected: list[CandidateSession],
-    conflict_matrix: dict[tuple[str, str], int],
 ) -> None:
-    """Attach conflict notes to each selected session describing shared
-    players with other selected sessions.  Mutates ``reasoning`` in place.
+    """Attach conflict notes describing shared players between sessions.
+
+    Mutates the ``reasoning`` attribute of each selected session in place.
+
+    Args:
+        selected: List of selected candidate sessions.
     """
     for i, sess in enumerate(selected):
         conflicts: list[str] = []

@@ -1,7 +1,7 @@
-from __future__ import annotations
+"""Name normalisation, fuzzy matching, and courtesy-owner extraction."""
 
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 # Precompiled regex patterns
 COURTESY_PATTERN = re.compile(r"^(.+?)\s*\(courtesy\s+(.+?)\)\s*$", re.IGNORECASE)

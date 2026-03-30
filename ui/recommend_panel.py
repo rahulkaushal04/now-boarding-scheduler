@@ -5,8 +5,6 @@ selected by the engine, plus a collapsible section for non-viable
 candidates and their rejection reasons.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
 
 import streamlit as st
@@ -16,6 +14,7 @@ from ui.styles import (
     ACCENT,
     BORDER,
     PRIMARY,
+    TEXT,
     TEXT_SEC,
     weight_badge_html,
 )
@@ -45,6 +44,7 @@ def render_recommendations(
     games: dict[str, Game],
     all_candidates: list[CandidateSession] | None = None,
     slots: dict[str, Slot] | None = None,
+    suggestions: list[CandidateSession] | None = None,
 ) -> list[CandidateSession]:
     """Render the recommendation panel as a day × location timetable.
 
@@ -54,11 +54,13 @@ def render_recommendations(
         games: Game objects keyed by id.
         all_candidates: Complete candidate list (viable + non-viable).
         slots: Slot objects for day/time resolution.
+        suggestions: Near-miss candidates that almost made the schedule.
 
     Returns:
         List of viable sessions shown in the timetable.
     """
     slots = slots or {}
+    suggestions = suggestions or []
 
     viable = [c for c in candidates if c.viable]
     pool = all_candidates if all_candidates is not None else candidates
@@ -152,36 +154,98 @@ def render_recommendations(
                     border_color = PRIMARY if wclass == "heavy" else ACCENT
                     slot_obj = slots.get(c.slot)
                     time_label = slot_obj.time if slot_obj else c.slot
+                    overflow_badge = (
+                        ' <span style="background:#f59e0b;color:#fff;'
+                        "padding:1px 6px;border-radius:8px;font-size:0.7em;"
+                        'margin-left:4px">2nd table</span>'
+                        if c.is_overflow
+                        else ""
+                    )
                     st.markdown(
                         f'<div class="rec-card" style="border-left:4px solid '
                         f'{border_color};padding:0.6rem 0.8rem;margin-bottom:0.35rem">'
                         f'<strong style="font-size:0.92em">{c.game}</strong> '
-                        f"{weight_badge_html(wclass)}<br>"
+                        f"{weight_badge_html(wclass)}{overflow_badge}<br>"
                         f'<span style="color:{TEXT_SEC};font-size:0.82em">'
                         f"{time_label} / {c.eligible_count} players</span>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )
 
-    # ---- Non-viable section ----
-    if non_viable:
-        seen: set[tuple[str, str]] = set()
-        unique_non_viable: list[CandidateSession] = []
-        for c in non_viable:
-            key = (c.game, c.rejection_reason or "")
-            if key not in seen:
-                seen.add(key)
-                unique_non_viable.append(c)
+    # ---- Suggestions: high-demand games that almost made it ----
+    if suggestions:
+        # Group suggestions by game, keep only the best option per game
+        best_per_game: dict[str, CandidateSession] = {}
+        for c in suggestions:
+            prev = best_per_game.get(c.game)
+            if prev is None or c.viability_score > prev.viability_score:
+                best_per_game[c.game] = c
+
+        unique_suggestions = sorted(
+            best_per_game.values(),
+            key=lambda c: c.viability_score,
+            reverse=True,
+        )
 
         with st.expander(
-            f"Can\u2019t be scheduled ({len(unique_non_viable)})", expanded=False
+            f"Almost made it ({len(unique_suggestions)} games)", expanded=False
         ):
-            for c in unique_non_viable:
+            # Render in a compact two-column grid
+            cols = st.columns(2)
+            for i, c in enumerate(unique_suggestions):
+                wc = games.get(c.game)
+                wclass = wc.weight_class if wc else "medium"
+                slot_obj = slots.get(c.slot)
+                time_label = slot_obj.time if slot_obj else c.slot
+                day_label = slot_obj.day if slot_obj else ""
+                reason = c.suggestion_reason or "Could not fit in the schedule"
+                border_color = PRIMARY if wclass == "heavy" else ACCENT
+                with cols[i % 2]:
+                    st.markdown(
+                        f'<div class="suggest-card" style="border-left:4px solid '
+                        f'{border_color}">'
+                        f'<strong style="font-size:0.92em;color:{TEXT}">'
+                        f"{c.game}</strong> "
+                        f"{weight_badge_html(wclass)}<br>"
+                        f'<span style="color:{TEXT_SEC};font-size:0.82em">'
+                        f"\U0001f4c5 {day_label} {time_label} &bull; "
+                        f"\U0001f4cd {c.location} &bull; "
+                        f"\U0001f465 {c.eligible_count}</span><br>"
+                        f'<span style="color:{ACCENT};font-size:0.8em">'
+                        f"{reason}</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
+    # ---- Non-viable section ----
+    if non_viable:
+        # Group by rejection reason, list game names under each
+        reason_games: dict[str, set[str]] = defaultdict(set)
+        for c in non_viable:
+            reason = c.rejection_reason or "Unknown reason"
+            reason_games[reason].add(c.game)
+
+        total_unique = len({c.game for c in non_viable})
+        with st.expander(
+            f"Can\u2019t be scheduled ({total_unique} games)", expanded=False
+        ):
+            st.markdown(
+                f'<div class="nv-scroll-container">',
+                unsafe_allow_html=True,
+            )
+            for reason, game_names in sorted(
+                reason_games.items(), key=lambda r: -len(r[1])
+            ):
+                chips = " ".join(
+                    f'<span class="nv-chip">{g}</span>' for g in sorted(game_names)
+                )
                 st.markdown(
-                    f'<div class="nv-item">'
-                    f"<strong>{c.game}</strong> / {c.slot} / {c.location}<br>"
-                    f'<span class="nv-reason">{c.rejection_reason}</span></div>',
+                    f'<div class="nv-group">'
+                    f'<div class="nv-group-reason">{reason}</div>'
+                    f'<div class="nv-group-games">{chips}</div>'
+                    f"</div>",
                     unsafe_allow_html=True,
                 )
+            st.markdown("</div>", unsafe_allow_html=True)
 
     return viable

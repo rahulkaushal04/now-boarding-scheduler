@@ -1,9 +1,4 @@
-"""Layer 1 — Score every (game, slot, location) candidate.
-
-Zero Streamlit imports.  Pure Python.
-"""
-
-from __future__ import annotations
+"""Layer 1 — Score every (game, slot, location) candidate."""
 
 from models.entities import CandidateSession, Game, Slot, Location
 from config import (
@@ -17,10 +12,8 @@ from config import (
 
 
 def _norm(value: float, maximum: float) -> float:
-    """Normalise *value* into [0, 1].  Returns 0 when *maximum* ≤ 0."""
-    if maximum <= 0:
-        return 0.0
-    return min(value / maximum, 1.0)
+    """Normalise *value* into [0, 1]. Returns 0 when *maximum* <= 0."""
+    return min(value / maximum, 1.0) if maximum > 0 else 0.0
 
 
 def score_all_candidates(
@@ -31,11 +24,22 @@ def score_all_candidates(
     locations: dict[str, Location],
     all_players: set[str],
 ) -> list[CandidateSession]:
-    """Score every (game, slot, location) triple.
+    """Score every (game, slot, location) triple and apply hard filters.
 
-    Applies game-rule hard filters first, then computes the 6-component
-    weighted viability score.  Returns **all** candidates sorted with
-    viable ones first (descending score) then non-viable ones.
+    Computes a 6-component weighted viability score for each candidate
+    after applying game-rule hard filters (allowed days, location lock,
+    owner availability, minimum players).
+
+    Args:
+        overlap_map: Pre-computed eligible players per (game, slot, location).
+        games: Mapping of game ID to Game object.
+        demand_matrix: Mapping of game to interested players.
+        slots: Mapping of slot ID to Slot object.
+        locations: Mapping of location ID to Location object.
+        all_players: Complete set of all player IDs.
+
+    Returns:
+        All candidates sorted viable-first (descending score), then non-viable.
     """
     candidates: list[CandidateSession] = []
 

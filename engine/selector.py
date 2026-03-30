@@ -35,7 +35,7 @@ def _qualifies_for_overflow(
         if sel.slot == candidate.slot and sel.location == candidate.location:
             shared = len(candidate.eligible_players & sel.eligible_players)
             union = len(candidate.eligible_players | sel.eligible_players)
-            if union > 0 and shared / union > _OVERFLOW_CONFLICT_THRESHOLD:
+            if union > 0 and shared / union >= _OVERFLOW_CONFLICT_THRESHOLD:
                 return False
 
     return True

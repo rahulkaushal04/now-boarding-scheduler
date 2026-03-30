@@ -31,7 +31,20 @@ _DAY_ORDER = [
 
 
 def _day_sort_key(day: str) -> int:
-    """Return a weekday sort index (Monday = 0 … Sunday = 6, unknown = 99)."""
+    """Return a calendar sort index for a weekday name.
+
+    Args:
+        day (str): Weekday name (e.g. ``"Monday"``).
+
+    Returns:
+        int: Index 0–6 (Monday–Sunday), or 99 for unrecognised values.
+
+    Example:
+        >>> _day_sort_key("Monday")
+        0
+        >>> _day_sort_key("Sunday")
+        6
+    """
     try:
         return _DAY_ORDER.index(day)
     except ValueError:

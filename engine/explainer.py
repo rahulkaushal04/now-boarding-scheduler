@@ -13,18 +13,29 @@ def explain_candidate(
     """Generate a human-readable reasoning trace for a scored candidate.
 
     Args:
-        candidate: The candidate session to explain.
-        demand_matrix: Mapping of game to interested players.
-        covered_players: Players already assigned to a session.
-        games: Mapping of game ID to Game object.
-        rank: Optional rank position in the candidate list.
+        candidate (CandidateSession): The candidate session to explain.
+        demand_matrix (dict[str, set[str]]): Mapping of game to interested
+            players.
+        covered_players (set[str]): Players already assigned to a session.
+        games (dict[str, Game]): Mapping of game ID to Game object.
+        rank (int | None): Optional rank position in the selected list.
 
     Returns:
-        SessionReasoning with demand, overlap, and selection explanations.
+        SessionReasoning: Demand, overlap, and selection explanations with a
+            copy of the candidate's score breakdown.
+
+    Example:
+        >>> from models.entities import CandidateSession
+        >>> c = CandidateSession(game="Scythe", slot="Tue 6 PM",
+        ...     location="HSR", eligible_players={"Alice"}, eligible_count=1)
+        >>> r = explain_candidate(c, {"Scythe": {"Alice"}}, set(), {}, rank=1)
+        >>> "Scythe" in r.demand_reason
+        True
     """
     interested = demand_matrix.get(candidate.game, set())
     total_interested = len(interested)
     max_demand = max((len(s) for s in demand_matrix.values()), default=0)
+
     # --- Demand reason ---
     demand_reason = (
         f"{candidate.game} has {total_interested} interested "
@@ -70,9 +81,23 @@ def add_conflict_notes(
     """Attach conflict notes describing shared players between sessions.
 
     Mutates the ``reasoning`` attribute of each selected session in place.
+    Sessions with no shared players across the schedule are left with
+    ``conflict_note`` as ``None``.
 
     Args:
-        selected: List of selected candidate sessions.
+        selected (list[CandidateSession]): List of selected candidate sessions.
+
+    Example:
+        >>> from models.entities import CandidateSession, SessionReasoning
+        >>> s1 = CandidateSession(game="G1", slot="S1", location="L1",
+        ...     eligible_players={"Alice"},
+        ...     reasoning=SessionReasoning("", "", ""))
+        >>> s2 = CandidateSession(game="G2", slot="S2", location="L1",
+        ...     eligible_players={"Alice"},
+        ...     reasoning=SessionReasoning("", "", ""))
+        >>> add_conflict_notes([s1, s2])
+        >>> s1.reasoning.conflict_note is not None
+        True
     """
     for i, sess in enumerate(selected):
         conflicts: list[str] = []

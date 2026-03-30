@@ -9,7 +9,13 @@ from engine.explainer import explain_candidate, add_conflict_notes
 
 
 @pytest.fixture
-def context():
+def context() -> tuple:
+    """Provide a standard (candidate, demand_matrix, covered, games) context.
+
+    Returns:
+        tuple: ``(CandidateSession, demand_matrix, covered_players, games_dict)``
+            for use in explainer tests.
+    """
     candidate = CandidateSession(
         game="Kanban EV",
         slot="Tuesday, 6 PM",

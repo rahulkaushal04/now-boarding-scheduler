@@ -52,7 +52,20 @@ _DATA_SOURCES: list[dict[str, str]] = [
 
 
 def _parse_pasted_csv(text: str) -> io.StringIO | None:
-    """Return a ``StringIO`` wrapping *text* if it looks like CSV, else ``None``."""
+    """Wrap non-empty pasted text in a StringIO file-like object.
+
+    Args:
+        text (str): Raw text pasted by the user.
+
+    Returns:
+        io.StringIO | None: Wrapped text when non-empty, otherwise ``None``.
+
+    Example:
+        >>> _parse_pasted_csv('Name,GameA\\nAlice,✓') is not None
+        True
+        >>> _parse_pasted_csv('   ') is None
+        True
+    """
     stripped = text.strip()
     return io.StringIO(stripped) if stripped else None
 
@@ -61,11 +74,11 @@ def _input_widget(key: str, label: str) -> tuple[Any, str | None]:
     """Render a compact input that supports file upload **or** pasted CSV.
 
     Args:
-        key: Unique key prefix for Streamlit widgets.
-        label: Human-readable label shown alongside the widget.
+        key (str): Unique key prefix for Streamlit widgets.
+        label (str): Human-readable label shown alongside the widget.
 
     Returns:
-        Tuple of ``(uploaded_file_or_None, pasted_text_or_None)``.
+        tuple[Any, str | None]: ``(uploaded_file_or_None, pasted_text_or_None)``.
     """
     mode = st.radio(
         "Input method",
@@ -99,7 +112,14 @@ def _input_widget(key: str, label: str) -> tuple[Any, str | None]:
 
 
 def _has_cached_df(key: str) -> bool:
-    """Return *True* if session state holds a non-empty DataFrame for *key*."""
+    """Return True when session state holds a non-empty DataFrame for *key*.
+
+    Args:
+        key (str): Session state key to check.
+
+    Returns:
+        bool: ``True`` when the key holds a non-empty ``pd.DataFrame``.
+    """
     cached = st.session_state.get(key)
     return isinstance(cached, pd.DataFrame) and not cached.empty
 
@@ -107,9 +127,13 @@ def _has_cached_df(key: str) -> bool:
 def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
     """Render the upload panel (step 1).
 
+    Presents four tabbed data inputs alongside a session configuration sidebar.
+    Parsed DataFrames are validated and stored in session state as side effects.
+
     Returns:
-        Tuple of ``(files_dict, scheduler_config)`` where *files_dict* maps
-        source keys to uploaded file objects (may be ``None``).
+        tuple[dict[str, Any], SchedulerConfig]: ``(files_dict, config)`` where
+            *files_dict* maps source keys (``"heavy"``, ``"medium"``, etc.) to
+            uploaded file objects (may be ``None``).
     """
     # Clear cached data when "Use example data" is unchecked
     use_example_now: bool = st.session_state.get("use_example_data", False)
@@ -256,7 +280,21 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
     def _resolve(
         key: str, loader: Any, *loader_args: Any
     ) -> tuple[pd.DataFrame, list[str]]:
-        """Parse from uploaded file, pasted text, example data, or session cache."""
+        """Parse from uploaded file, pasted text, example data, or session cache.
+
+        Resolution priority: uploaded file → pasted text → example data →
+        cached session state → empty DataFrame.
+
+        Args:
+            key (str): Data source key (e.g. ``"heavy"``, ``"timings"``).
+            loader (Any): Callable that parses a file-like object into a
+                DataFrame.
+            *loader_args (Any): Extra positional arguments forwarded to
+                *loader* (e.g. weight class label).
+
+        Returns:
+            tuple[pd.DataFrame, list[str]]: Parsed DataFrame and any errors.
+        """
         file_obj, pasted = sources[key]
         if file_obj is not None:
             file_obj.seek(0)
@@ -357,7 +395,6 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
                 st.caption("Locations")
                 st.dataframe(place_df, width="stretch", hide_index=True)
 
-    # Store parsed frames
     st.session_state["upload_heavy_df"] = heavy_df
     st.session_state["upload_medium_df"] = medium_df
     st.session_state["upload_timings_df"] = timings_df

@@ -459,11 +459,21 @@ def inject_custom_css() -> None:
 
 
 def badge_html(text: str, color: str) -> str:
-    """Return an inline coloured badge ``<span>``.
+    """Return an inline coloured badge ``<span>`` element.
+
+    Computes a semi-transparent background from the hex colour and
+    HTML-escapes the label text to prevent injection.
 
     Args:
-        text: Label text (HTML-escaped automatically).
-        color: Hex colour string, e.g. ``"#00D4AA"``.
+        text (str): Label text; HTML-escaped automatically.
+        color (str): Hex colour string (e.g. ``"#00D4AA"``).
+
+    Returns:
+        str: HTML ``<span>`` string with inline styles applied.
+
+    Example:
+        >>> "Heavy" in badge_html("Heavy", "#00D4AA")
+        True
     """
     r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
     safe = _html.escape(text)
@@ -475,10 +485,17 @@ def badge_html(text: str, color: str) -> str:
 
 
 def weight_badge_html(weight_class: str) -> str:
-    """Return a Heavy / Medium weight-class badge.
+    """Return a Heavy or Medium weight-class badge HTML string.
 
     Args:
-        weight_class: ``"heavy"`` or ``"medium"``.
+        weight_class (str): ``"heavy"`` or ``"medium"``.
+
+    Returns:
+        str: Coloured HTML badge for the weight class.
+
+    Example:
+        >>> "Heavy" in weight_badge_html("heavy")
+        True
     """
     if weight_class == "heavy":
         return badge_html("Heavy", PRIMARY)

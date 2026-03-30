@@ -4,7 +4,22 @@ import pandas as pd
 
 
 def _get_name_set(df: pd.DataFrame) -> set[str]:
-    """Return cleaned player names from a DataFrame."""
+    """Return the set of player names from a poll DataFrame.
+
+    Returns an empty set when the DataFrame is empty or lacks a Name column,
+    so callers can safely perform set operations without additional guards.
+
+    Args:
+        df (pd.DataFrame): Poll DataFrame with an optional 'Name' column.
+
+    Returns:
+        set[str]: Player names as strings, or an empty set when unavailable.
+
+    Example:
+        >>> import pandas as pd
+        >>> _get_name_set(pd.DataFrame({"Name": ["Alice", "Bob"]}))
+        {'Alice', 'Bob'}
+    """
     if df.empty or "Name" not in df.columns:
         return set()
     return set(df["Name"].astype(str))
@@ -18,11 +33,28 @@ def validate_cross_files(
 ) -> list[str]:
     """Validate player coverage across all CSV inputs.
 
-    Checks that players who filled a game poll also appear in
-    the timings and location polls.
+    Checks that players who filled a game poll also appear in the timings
+    and location polls. Players absent from either poll cannot be matched
+    to a time slot or venue, so they will be silently excluded from
+    scheduling.
+
+    Args:
+        heavy_df (pd.DataFrame): Heavy game poll DataFrame.
+        medium_df (pd.DataFrame): Medium game poll DataFrame.
+        timings_df (pd.DataFrame): Timings availability DataFrame.
+        place_df (pd.DataFrame): Location preference DataFrame.
 
     Returns:
-        List of validation warnings.
+        list[str]: Human-readable warning messages; empty when all players
+            appear in every poll.
+
+    Example:
+        >>> import pandas as pd
+        >>> heavy = pd.DataFrame({"Name": ["Alice"]})
+        >>> empty = pd.DataFrame({"Name": []})
+        >>> warnings = validate_cross_files(heavy, empty, empty, empty)
+        >>> any("timings" in w for w in warnings)
+        True
     """
     warnings: list[str] = []
 

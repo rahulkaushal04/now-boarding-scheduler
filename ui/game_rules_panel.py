@@ -26,7 +26,24 @@ _DAY_ORDER = [
 
 
 def _values_differ(a: Any, b: Any) -> bool:
-    """Safely compare two scalar values, handling ``NaN`` and type mismatches."""
+    """Safely compare two scalar values, treating NaN as equal to NaN.
+
+    Uses string comparison after NaN guarding to handle mixed types
+    (int, float, str) consistently across DataFrame columns.
+
+    Args:
+        a (Any): First value.
+        b (Any): Second value.
+
+    Returns:
+        bool: ``True`` when the values should be considered different.
+
+    Example:
+        >>> _values_differ("Yes", "No")
+        True
+        >>> _values_differ(float("nan"), float("nan"))
+        False
+    """
     if pd.isna(a) and pd.isna(b):
         return False
     if pd.isna(a) or pd.isna(b):
@@ -35,7 +52,24 @@ def _values_differ(a: Any, b: Any) -> bool:
 
 
 def _game_differs(current: Game | None, original: Game | None) -> bool:
-    """Return *True* if any editable field differs between two ``Game`` objects."""
+    """Return True if any user-editable field differs between two Game objects.
+
+    Compares min_players, owner, allowed_days, and location_lock.
+    Handles ``None`` for either argument safely.
+
+    Args:
+        current (Game | None): Possibly edited game state.
+        original (Game | None): Auto-detected default game state.
+
+    Returns:
+        bool: ``True`` when at least one editable field has changed.
+
+    Example:
+        >>> g1 = Game(id="G", weight_class="heavy", min_players=2)
+        >>> g2 = Game(id="G", weight_class="heavy", min_players=3)
+        >>> _game_differs(g1, g2)
+        True
+    """
     if current is None or original is None:
         return current is not original
     return (
@@ -47,7 +81,22 @@ def _game_differs(current: Game | None, original: Game | None) -> bool:
 
 
 def _day_sort_key(day: str) -> int:
-    """Return a sort index for *day* so weekdays appear in calendar order."""
+    """Return a calendar sort index for a weekday name.
+
+    Args:
+        day (str): Weekday name (e.g. ``"Monday"``).
+
+    Returns:
+        int: Index 0–6 (Monday–Sunday), or 99 for unrecognised values.
+
+    Example:
+        >>> _day_sort_key("Monday")
+        0
+        >>> _day_sort_key("Sunday")
+        6
+        >>> _day_sort_key("Someday")
+        99
+    """
     try:
         return _DAY_ORDER.index(day)
     except ValueError:
@@ -72,12 +121,14 @@ def render_game_rules(
     instead of the full page, which prevents scroll-to-top jumps.
 
     Args:
-        games: Current game rules (may include prior user edits).
-        players: All known players keyed by id.
-        slots: All discovered time slots.
-        locations: All discovered locations.
-        original_games: Auto-detected defaults for visual diff comparison
-            and the *Reset* buttons.  Falls back to *games* when ``None``.
+        games (dict[str, Game]): Current game rules (may include prior user
+            edits).
+        players (dict[str, Player]): All known players keyed by id.
+        slots (dict[str, Slot]): All discovered time slots.
+        locations (dict[str, Location]): All discovered locations.
+        original_games (dict[str, Game] | None): Auto-detected defaults for
+            visual diff comparison and the *Reset* buttons. Falls back to
+            *games* when ``None``.
     """
     if original_games is None:
         original_games = games

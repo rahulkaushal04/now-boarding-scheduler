@@ -2,212 +2,297 @@
 
 A weekly board-game session planner for [Now Boarding — Board Game Café](https://www.nowboarding.co.in), Bengaluru.
 
-Upload poll results from your gaming group, and the app builds an optimised weekly schedule — picking the right games, days, and venues automatically.
-
 **Locations:**
 [Now Boarding, HSR Layout](https://maps.app.goo.gl/x8mDruJ4M3BGVekBA) · [Now Boarding, Jayanagar](https://maps.app.goo.gl/5QBuavASgUroa1z79)
 
 ---
 
-## How to Use the App
+## What Is This Project?
 
-The app is a four-step wizard. You move through each step with Next / Back buttons.
+Imagine you run a weekly board game group. You have 20 players, 15 different games, 6 possible time slots across the week, and 2 venues. Everyone has different preferences — some people can only make Tuesday evenings, others prefer weekends. Some games are owned by specific players, so they can't run without that person present.
 
-### Step 1 — Upload Your Data
+**Now Boarding Scheduler** solves the puzzle of "who plays what, when, and where" automatically.
 
-You need four CSV files (or you can paste the data directly):
+You upload the results of a simple poll (which games people want, when they're free, and where they can go), and the app produces a ready-to-use weekly timetable — picking the best sessions, explaining every decision in plain English, and showing you exactly why each game was chosen or skipped.
 
-| File | What It Contains |
-|------|-----------------|
-| **Heavy Games** | Which complex/long games (3+ hrs) each person wants to play |
-| **Medium Games** | Which lighter/shorter games (1–3 hrs) each person wants to play |
-| **Timings** | When each person is free (e.g. Tuesday 6 PM, Saturday 1 PM) |
-| **Locations** | Where each person can go (e.g. Jayanagar, HSR Layout) |
-
-Each file has a `Name` column with player names and a `✓` in the columns they voted for.
-
-> **Tip:** Don't have your own data yet? Toggle **"Use example data"** in the sidebar to try it out with sample polls.
-
-You can also tweak a few settings in the sidebar:
-
-- **Max game repeats per week** — how many times the same game can appear (default: 2)
-- **Minimum players to run a game** — the floor for a session to be viable (default: 1)
-- **Max games at same time & place** — how many tables can run simultaneously at one venue (default: 2)
-
-### Step 2 — Game Rules
-
-The app auto-detects games and their owners from the poll data. This screen lets you fine-tune things before the schedule is generated:
-
-- **Min Players** — set a per-game minimum (e.g. a game that needs at least 3)
-- **Owner** — who owns the physical copy (they must be present for the session to happen)
-- **Allowed Days** — restrict a game to certain days (uncheck days it shouldn't be played)
-- **Location Lock** — force a game to a specific venue (e.g. the owner's neighbourhood)
-
-### Step 3 — Recommendations
-
-This is the main output: a **timetable grid** showing the best sessions for the week.
-
-- Rows are venues, columns are days
-- Each cell shows the game, time, and how many players can make it
-- Below the timetable you'll see:
-  - **Almost made it** — popular games that nearly got scheduled, with the reason they didn't
-  - **Can't be scheduled** — games that failed hard constraints, grouped by reason
-
-### Step 4 — Insights
-
-Visual analytics to understand the data behind the schedule:
-
-- **Game Demand Ranking** — which games are most wanted
-- **Demand Heatmap** — a game-by-timeslot grid showing where demand is strongest
-- **Player Coverage** — how many people got at least one session (and who didn't)
-- **Location Split** — how player preferences are distributed across venues
-- **Unviable Games** — a table of every game/slot/location that couldn't work, with the reason
+No spreadsheets. No manual coordination. Just upload and schedule.
 
 ---
 
-## How the Algorithm Works
+## Why Does This Exist?
 
-The scheduler uses a three-layer pipeline: **Score → Select → Explain**.
+Coordinating board game sessions for a large group is harder than it looks:
 
-### Layer 1 — Score Every Possibility
+- Not everyone wants to play the same game.
+- Not everyone is free at the same time.
+- Some games need a specific person present (the owner).
+- You can only run so many tables at once in a single venue.
+- Scheduling the same popular game every week leaves niche games forever unplayed.
 
-The app looks at every possible combination of (game, time slot, venue) and asks two questions:
-
-**Can this even happen?** It checks four hard rules:
-1. Is this game allowed on this day? (Some games are restricted to weekends, for example.)
-2. Is this the right venue? (If a game is locked to a specific location.)
-3. Is the game owner free at this time and place? (No owner = no physical copy.)
-4. Are enough players available? (Below the minimum = can't run.)
-
-If any rule fails, that combination is rejected with a reason.
-
-**How good is this option?** For combinations that pass, the app calculates a score based on six factors:
-
-| Factor | What It Measures |
-|--------|-----------------|
-| **Demand** | How many interested players can actually make this session |
-| **Coverage** | What fraction of the whole group this session would serve |
-| **Diversity** | Niche games score higher — so the schedule isn't all the same popular titles |
-| **Popularity** | A small boost for widely-loved games |
-| **Availability** | Prefers time slots when more people are free |
-| **Location fit** | How well this venue serves this game's fans |
-
-These are combined into a single score between 0 and 1.
-
-### Layer 2 — Build the Schedule (Greedy Selection)
-
-Starting from the highest-scored option, the app tries to add sessions one by one:
-
-1. **Is the table free?** Each venue + time slot has a limited number of tables.
-2. **Has this game been picked too many times already?** Respects the weekly repeat limit.
-3. **Is this game already running at this exact time elsewhere?** Only one physical copy exists.
-
-If a session passes those checks, the app applies three soft adjustments:
-
-- **Coverage bonus** — extra credit if this session includes players who don't have any session yet
-- **Conflict penalty** — a deduction if this session fights over the same players as another session at the same time
-- **Diminishing returns** — each time a game is picked again, its score is halved (so variety wins naturally)
-
-If the adjusted score is still positive, the session is added to the schedule.
-
-### Layer 3 — Explain Every Decision
-
-For each selected session, the app generates plain-English reasoning:
-
-- *"Food Chain Magnate has 8 interested players — highest demand this week"*
-- *"5 of those 8 are free at Tuesday 6 PM and prefer HSR Layout"*
-- *"Ranked #1. Covers 5 new players. Owner Grace is available."*
-- *"Shares 3 players with Kanban EV"*
-
-This makes the schedule transparent — you can always understand *why* a game was chosen or skipped.
+Doing this by hand — even with a spreadsheet — is tedious, error-prone, and biased toward whatever comes to mind first. This app does it systematically, fairly, and transparently.
 
 ---
 
-## Project Structure
+## How It Works (Simple)
+
+The app is a **four-step wizard** that runs in your browser.
 
 ```
-app.py                  Main Streamlit app (4-step wizard)
-config.py               Scoring weights and constants
-requirements.txt        Python dependencies
-
-data/
-  loader.py             CSV parsing and validation
-  processor.py          Builds players, games, slots, locations, and derived indices
-  validators.py         Cross-file consistency checks
-
-engine/
-  scorer.py             Layer 1 — scores every (game, slot, location) combination
-  selector.py           Layer 2 — greedy schedule builder
-  explainer.py          Layer 3 — human-readable reasoning
-
-models/
-  config_model.py       User-facing configuration (max repeats, min players, etc.)
-  entities.py           Data classes: Player, Game, Slot, Location, CandidateSession
-
-ui/
-  upload_panel.py       Step 1 — file upload / paste / example data
-  game_rules_panel.py   Step 2 — editable game rules table
-  recommend_panel.py    Step 3 — timetable + suggestions + non-viable section
-  insights_panel.py     Step 4 — charts and analytics
-  styles.py             Dark-mode CSS and colour palette
-
-utils/
-  names.py              Name normalisation and fuzzy matching
-
-example_data/           Sample CSV polls for quick testing
-tests/                  Unit tests (pytest)
+Step 1 → Upload your polls
+Step 2 → Adjust game rules
+Step 3 → See the recommended schedule
+Step 4 → Explore the analytics
 ```
+
+**Step 1 — Upload Your Data**
+You upload four poll result files: which heavy games people want, which medium games they want, when they're available, and where they're willing to go. (You can also just paste the CSV data directly, or use built-in example data to try it out.)
+
+**Step 2 — Game Rules**
+The app detects game owners automatically. You can review and adjust things like minimum player counts, which days a game is allowed, or which venue it must be played at.
+
+**Step 3 — Recommendations**
+The app displays a timetable — rows are venues, columns are days. Each cell shows the game, the time, and how many players can make it. You also see "almost made it" games (high demand but couldn't fit) and games that couldn't be scheduled at all, with a plain-English reason for each.
+
+**Step 4 — Insights**
+Charts showing demand rankings, a player-vs-timeslot heatmap, coverage stats (which players got a session and which didn't), and a breakdown of rejected candidates.
 
 ---
 
-## Getting Started
+## How It Works (Technical)
+
+The scheduling engine is a three-layer pipeline.
+
+### Layer 1 — Score Every Candidate (`engine/scorer.py`)
+
+The app generates every possible combination of `(game, time slot, venue)` and applies **hard filters** first:
+
+| Filter | Condition |
+|--------|-----------|
+| Allowed days | Game restricted to certain weekdays |
+| Location lock | Game must run at a specific venue |
+| Owner availability | Owner must be in the eligible player set |
+| Minimum players | Eligible count must meet the game's floor |
+
+Combinations that pass are scored using **six weighted components**:
+
+| Component | Weight | What It Measures |
+|-----------|--------|-----------------|
+| Demand | 30% | Eligible players at this (slot, location) vs. the best possible |
+| Coverage | 30% | Fraction of the entire group this session would serve |
+| Availability | 15% | How busy this time slot is across all games |
+| Popularity | 10% | Overall interest in the game, regardless of slot |
+| Diversity | 10% | Niche games score higher — prevents popular titles from dominating |
+| Location fit | 5% | Fraction of demand that this venue actually captures |
+
+The final viability score is a float in `[0, 1]`. All candidates are sorted viable-first, descending by score.
+
+### Layer 2 — Greedy Selection (`engine/selector.py`)
+
+Starting from the highest-scored viable candidate, the algorithm iterates and checks three **hard constraints**:
+
+1. **Table ceiling** — `(location, slot)` already has `max_tables_per_slot` sessions.
+2. **Repeat limit** — this game already appears `max_repeats_per_week` times.
+3. **Slot uniqueness** — this game is already running at this exact slot (only one physical copy).
+
+If those pass, three **soft adjustments** are applied to the score:
+
+- **Coverage bonus** (+0.3 × fraction of uncovered players this session reaches)
+- **Conflict penalty** (−0.2 × Jaccard overlap with same-slot sessions)
+- **Diversity multiplier** (÷ 2^n where n = times this game is already scheduled)
+
+A session is added if the adjusted score is positive. Games that get blocked but would otherwise have been scheduled are tracked as **near-miss suggestions**.
+
+**Smart overflow:** when a slot is full, a second table is allowed only if the game would otherwise go entirely unscheduled *and* the Jaccard player overlap with the existing session is below 0.5 — meaning the two tables serve genuinely different groups.
+
+### Layer 3 — Explainability (`engine/explainer.py`)
+
+Every selected session gets a structured reasoning trace:
+
+- **Demand reason** — *"Kanban EV has 10 interested players — highest demand this week"*
+- **Overlap reason** — *"6 of those 10 are free at Tuesday 6 PM and prefer HSR Layout"*
+- **Selection reason** — *"Ranked #1. Covers 6 new players. Owner Grace is available."*
+- **Conflict note** — *"Shares 3 players with Food Chain Magnate"*
+
+This makes the schedule fully auditable — every decision can be traced back to the input data.
+
+---
+
+## Installation
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11 or later
+- `pip` (comes bundled with Python)
 
-### Install & Run
+You do not need any special database, server, or cloud account. Everything runs locally in your browser.
+
+### Step-by-step Setup
+
+**1. Get the code**
+
+```bash
+git clone <repo-url>
+cd now-boarding-scheduler
+```
+
+**2. Create a virtual environment** (recommended — keeps dependencies isolated)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate      # macOS / Linux
+.venv\Scripts\activate         # Windows
+```
+
+**3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
+```
+
+This installs four libraries: `streamlit` (the web UI), `plotly` (charts), `pandas` (data handling), and `pytest` (tests).
+
+**4. Launch the app**
+
+```bash
 streamlit run app.py
 ```
 
-The app opens in your browser. Toggle **"Use example data"** in the sidebar to try it immediately.
+Your browser opens automatically at `http://localhost:8501`. If it doesn't, open that address manually.
 
-### Run Tests
+---
+
+## Usage
+
+### Quickstart (no data needed)
+
+1. Run `streamlit run app.py`
+2. On Step 1, tick **"Use example data"** in the right-hand panel
+3. Click **Next → Game Rules**, then **Next → Recommendations**
+4. Browse the schedule and click through to Insights
+
+### Using Your Own Poll Data
+
+#### What files do you need?
+
+| File | Content |
+|------|---------|
+| `heavy_games.csv` | Poll results for complex/long games (3+ hours) |
+| `medium_games.csv` | Poll results for lighter/shorter games (1–3 hours) |
+| `timings.csv` | When each player is available |
+| `place.csv` | Which venue(s) each player can attend |
+
+#### CSV format
+
+All four files follow the same structure: a `Name` column, then one column per option, with a `✓` character marking a vote. The last column is typically a `Total` and is ignored automatically.
+
+**Heavy/Medium Games:**
+
+```
+Name,Bitoku,Food Chain Magnate,Kanban EV (courtesy Grace)
+Victor,✓,,✓
+Alice,,✓,✓
+Grace,✓,✓,✓
+```
+
+> Game names written as `"Game Name (courtesy Player)"` are automatically parsed — the app detects that player as the game owner and adds the ownership constraint.
+
+**Timings:**
+
+```
+Name,Tuesday, 6 PM,Wednesday, 6 PM,Saturday, 1 PM
+Oscar,✓,✓,
+Alice,✓,✓,
+Victor,,,✓
+```
+
+**Locations:**
+
+```
+Name,HSR Layout,Jayanagar
+Oscar,✓,
+Alice,✓,
+Victor,,✓
+```
+
+#### Input methods
+
+On each tab in Step 1 you can:
+- **Upload a file** — drag and drop or browse for a `.csv` file
+- **Paste CSV** — copy from a spreadsheet and paste directly into the text box
+
+#### Configuration options
+
+| Setting | Default | What It Controls |
+|---------|---------|-----------------|
+| Max game repeats per week | 2 | How many times the same game can appear in the schedule |
+| Minimum players to run a game | 1 | Global floor; individual games can have higher requirements set in Step 2 |
+| Max games at same time & place | 2 | How many tables can run simultaneously at one venue in one slot |
+
+### Downloading sample files
+
+In Step 1, click **Download sample CSVs** to get a zip of all four example files. Use them as templates for your own polls.
+
+### Running Tests
 
 ```bash
 pytest
 ```
 
+The test suite covers the CSV loader, entity builder, scorer, selector, and explainer. All tests run without Streamlit and complete in under a second.
+
 ---
 
-## CSV Format Reference
+## Developer Notes
 
-All four files follow the same pattern: a `Name` column followed by data columns, with `✓` marking a vote.
+### Architecture
 
-**Games CSV** (heavy or medium):
 ```
-Name,Bitoku,Kanban EV (courtesy Grace),On Mars (courtesy Grace)
-Victor,✓,✓,
-Alice,,✓,✓
-Grace,✓,✓,✓
+app.py                       Streamlit entry point — 4-step wizard, session state, engine orchestration
+config.py                    Scoring weights and shared constants
+
+data/
+  loader.py                  CSV parsing → boolean DataFrames (handles vote markers, Total rows)
+  processor.py               DataFrames → typed entities + derived indices (overlap map, demand/conflict matrices)
+  validators.py              Cross-file consistency checks (players missing from timings / place polls)
+
+engine/
+  scorer.py                  Layer 1 — hard filters + 6-component weighted scoring for every candidate
+  selector.py                Layer 2 — greedy selection with overflow, soft adjustments, near-miss tracking
+  explainer.py               Layer 3 — structured plain-English reasoning traces per session
+
+models/
+  entities.py                Dataclasses: Player, Game, Slot, Location, CandidateSession, SelectionResult
+  config_model.py            SchedulerConfig (user-facing settings with validation)
+
+ui/
+  upload_panel.py            Step 1 — file upload, paste, example data, stat counters
+  game_rules_panel.py        Step 2 — @st.fragment data editor with visual diff and per-game reset
+  recommend_panel.py         Step 3 — day × location timetable, suggestions, non-viable section
+  insights_panel.py          Step 4 — Plotly charts and analytics
+  styles.py                  Dark-mode CSS, colour palette constants, HTML badge helpers
+
+utils/
+  names.py                   Name normalisation and fuzzy substring matching for owner detection
+
+example_data/                Sample CSVs for local testing and the in-app "Use example data" toggle
+tests/                       pytest unit tests — one file per engine/data module
 ```
 
-Game names in parentheses like `(courtesy Grace)` are automatically detected as the game owner.
+### Key Design Decisions
 
-**Timings CSV:**
-```
-Name,Tuesday 6 PM,Wednesday 6 PM,Thursday 6 PM,Saturday 1 PM
-Oscar,✓,✓,✓,
-Alice,✓,✓,✓,
-```
+**Pre-indexed overlap map.** Rather than filtering players per candidate at score time, `build_overlap_map` pre-indexes players by game, slot, and location into three dicts and then intersects them. This drops the inner loop from O(players × games × slots × locations) to O(games × slots × locations) with cheap set operations.
 
-**Locations CSV:**
-```
-Name,Jayanagar,HSR Layout
-Oscar,,✓
-Paul,✓,
-Alice,,✓
-```
+**`@st.fragment` on the rules editor.** The data editor in Step 2 triggers a Streamlit rerun on every cell change. Wrapping it in `@st.fragment` scopes reruns to just that component, preventing the page from scrolling to the top on every keystroke.
+
+**Near-miss suggestions.** The selector tracks the best blocked candidate per unscheduled game. After selection completes, any game with zero sessions gets its best candidate surfaced as a "suggestion" with a human-readable reason — making the schedule explainable not just for what was chosen but for what was left out.
+
+**Scoring weights.** All six weights are defined as module-level constants in `config.py` (`W_DEMAND`, `W_COVERAGE`, etc.). They are intentionally not exposed in the UI — the defaults were tuned against the example dataset, but they can be adjusted there for different group dynamics.
+
+### Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `streamlit` | 1.55.0 | Web UI framework |
+| `plotly` | 6.6.0 | Interactive charts in the Insights panel |
+| `pandas` | 2.3.3 | CSV parsing and DataFrame operations |
+| `pytest` | 9.0.2 | Unit testing |

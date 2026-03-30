@@ -12,7 +12,23 @@ from config import (
 
 
 def _norm(value: float, maximum: float) -> float:
-    """Normalise *value* into [0, 1]. Returns 0 when *maximum* <= 0."""
+    """Normalise *value* into [0, 1].
+
+    Returns 0 when *maximum* is zero or negative to avoid division by zero.
+
+    Args:
+        value (float): The raw value to normalise.
+        maximum (float): The upper bound for normalisation.
+
+    Returns:
+        float: Normalised value clamped to [0, 1].
+
+    Example:
+        >>> _norm(3, 10)
+        0.3
+        >>> _norm(0, 0)
+        0.0
+    """
     return min(value / maximum, 1.0) if maximum > 0 else 0.0
 
 
@@ -31,15 +47,19 @@ def score_all_candidates(
     owner availability, minimum players).
 
     Args:
-        overlap_map: Pre-computed eligible players per (game, slot, location).
-        games: Mapping of game ID to Game object.
-        demand_matrix: Mapping of game to interested players.
-        slots: Mapping of slot ID to Slot object.
-        locations: Mapping of location ID to Location object.
-        all_players: Complete set of all player IDs.
+        overlap_map (dict[tuple[str, str, str], set[str]]): Pre-computed
+            eligible players per (game, slot, location).
+        games (dict[str, Game]): Mapping of game ID to Game object.
+        demand_matrix (dict[str, set[str]]): Mapping of game to interested
+            players.
+        slots (dict[str, Slot]): Mapping of slot ID to Slot object.
+        locations (dict[str, Location]): Mapping of location ID to Location
+            object.
+        all_players (set[str]): Complete set of all player IDs.
 
     Returns:
-        All candidates sorted viable-first (descending score), then non-viable.
+        list[CandidateSession]: All candidates sorted viable-first
+            (descending score), then non-viable.
     """
     candidates: list[CandidateSession] = []
 

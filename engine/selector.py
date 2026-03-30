@@ -18,6 +18,15 @@ def _qualifies_for_overflow(
     1. The game has zero sessions scheduled (would be entirely unscheduled).
     2. Player overlap with the existing session(s) at the same (slot, location)
        is below the conflict threshold — the two tables serve different groups.
+
+    Args:
+        candidate (CandidateSession): The candidate being evaluated.
+        game_counts (dict[str, int]): Number of sessions already scheduled
+            per game id.
+        selected (list[CandidateSession]): Already-selected sessions.
+
+    Returns:
+        bool: ``True`` if the candidate may open a second table.
     """
     if game_counts.get(candidate.game, 0) > 0:
         return False
@@ -37,7 +46,18 @@ def _track_near_miss(
     candidate: CandidateSession,
     reason: str,
 ) -> None:
-    """Keep the best (highest-scored) skipped candidate per unscheduled game."""
+    """Update the near-miss record for a skipped candidate's game.
+
+    Retains only the highest-scoring skipped candidate per game so the
+    suggestions list surfaces the most promising alternative for each
+    unscheduled game.
+
+    Args:
+        near_misses (dict[str, tuple[CandidateSession, str]]): Running map
+            of game id to ``(best_candidate, skip_reason)`` pairs.
+        candidate (CandidateSession): The skipped candidate.
+        reason (str): Human-readable explanation for why it was skipped.
+    """
     gid = candidate.game
     if (
         gid not in near_misses
@@ -67,13 +87,15 @@ def select_sessions(
     and the player overlap with the existing session is low.
 
     Args:
-        candidates: Scored candidates from Layer 1.
-        config: Scheduler configuration (repeat limits, table ceiling, etc.).
-        conflict_matrix: Pairwise shared-player counts between games.
-        all_players: Complete set of all player IDs.
+        candidates (list[CandidateSession]): Scored candidates from Layer 1.
+        config (SchedulerConfig): Scheduler configuration (repeat limits,
+            table ceiling, etc.).
+        conflict_matrix (dict[tuple[str, str], int]): Pairwise shared-player
+            counts between games.
+        all_players (set[str]): Complete set of all player IDs.
 
     Returns:
-        SelectionResult with selected sessions and near-miss suggestions.
+        SelectionResult: Selected sessions and near-miss suggestions.
     """
     viable = [c for c in candidates if c.viable]
 
@@ -82,7 +104,7 @@ def select_sessions(
     occupied: dict[tuple[str, str], int] = {}
     covered_players: set[str] = set()
     game_counts: dict[str, int] = {}
-    # game → set of slots already booked (only one copy exists)
+    # game → set of slots already booked (only one copy per slot)
     game_slots: dict[str, set[str]] = {}
     # Best skipped candidate per unscheduled game (for suggestions)
     near_misses: dict[str, tuple[CandidateSession, str]] = {}

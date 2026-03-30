@@ -21,7 +21,11 @@ class SchedulerConfig:
         """Validate configuration values.
 
         Returns:
-            List of validation error messages (empty if valid).
+            list[str]: Validation error messages; empty when all values are valid.
+
+        Example:
+            >>> SchedulerConfig(max_repeats_per_week=0).validate()
+            ['Max repeats per week must be a positive integer']
         """
         errors: list[str] = []
 

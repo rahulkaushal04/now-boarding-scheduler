@@ -10,7 +10,23 @@ from utils.names import extract_courtesy_owner, find_best_match
 
 
 def _data_columns(df: pd.DataFrame) -> list[str]:
-    """Return columns excluding metadata columns (Name, Total)."""
+    """Return non-metadata columns from a poll DataFrame.
+
+    Excludes the 'Name' and 'Total' columns, which are administrative
+    rather than data-bearing.
+
+    Args:
+        df (pd.DataFrame): Poll DataFrame with at least a 'Name' column.
+
+    Returns:
+        list[str]: Column names excluding EXCLUDED_COLUMNS.
+
+    Example:
+        >>> import pandas as pd
+        >>> df = pd.DataFrame(columns=["Name", "GameA", "Total"])
+        >>> _data_columns(df)
+        ['GameA']
+    """
     return [c for c in df.columns if c not in EXCLUDED_COLUMNS]
 
 
@@ -28,25 +44,34 @@ def build_players(
     """Construct Player objects from poll DataFrames.
 
     Args:
-        heavy_df: Heavy game poll data.
-        medium_df: Medium game poll data.
-        timings_df: Timings poll data.
-        place_df: Location poll data.
+        heavy_df (pd.DataFrame): Heavy game poll data.
+        medium_df (pd.DataFrame): Medium game poll data.
+        timings_df (pd.DataFrame): Timings poll data.
+        place_df (pd.DataFrame): Location poll data.
 
     Returns:
-        Mapping of player name to Player object.
+        dict[str, Player]: Mapping of player name to Player object.
     """
     players: dict[str, Player] = {}
 
     def _get(name: str) -> Player:
+        """Return the existing Player for *name*, creating one if needed."""
         if name not in players:
             players[name] = Player(id=name)
         return players[name]
 
-    def _add_game_prefs(
-        df: pd.DataFrame,
-        pref_attr: str,
-    ) -> None:
+    def _add_game_prefs(df: pd.DataFrame, pref_attr: str) -> None:
+        """Populate game preferences on all players from a poll DataFrame.
+
+        Reads each row's voted games, strips the courtesy-owner suffix from
+        column headers, and adds the base game name to the player's preference
+        set and to ``all_prefs`` for cross-weight-class lookups.
+
+        Args:
+            df (pd.DataFrame): Game poll data with boolean vote columns.
+            pref_attr (str): Attribute name on Player to populate
+                (``"heavy_prefs"`` or ``"medium_prefs"``).
+        """
         if df.empty or "Name" not in df.columns:
             return
         game_cols = _data_columns(df)
@@ -94,18 +119,28 @@ def build_games(
     """Construct Game objects from poll CSVs.
 
     Args:
-        heavy_df: Heavy game poll data.
-        medium_df: Medium game poll data.
-        players: Pre-built player mapping for owner resolution.
-        default_min_players: Default minimum players needed per game.
+        heavy_df (pd.DataFrame): Heavy game poll data.
+        medium_df (pd.DataFrame): Medium game poll data.
+        players (dict[str, Player]): Pre-built player mapping for owner
+            resolution.
+        default_min_players (int): Default minimum players needed per game.
 
     Returns:
-        Mapping of game name to Game object.
+        dict[str, Game]: Mapping of game name to Game object.
     """
     games: dict[str, Game] = {}
     player_names = list(players)
 
     def _add_games(df: pd.DataFrame, weight_class: str) -> None:
+        """Parse game columns from a poll DataFrame and register them.
+
+        Extracts the base game name and optional courtesy owner from each
+        column header, then fuzzy-matches the owner name against known players.
+
+        Args:
+            df (pd.DataFrame): Game poll data.
+            weight_class (str): Weight category to assign to parsed games.
+        """
         if df.empty:
             return
         for col in _data_columns(df):
@@ -127,11 +162,21 @@ def build_games(
 def build_slots(timings_df: pd.DataFrame) -> dict[str, Slot]:
     """Construct Slot objects from timing columns.
 
+    Parses each timing column header (e.g. ``"Tuesday, 6 PM"``) into a
+    day and time component using the first comma as a delimiter.
+
     Args:
-        timings_df: Timings poll DataFrame.
+        timings_df (pd.DataFrame): Timings poll DataFrame.
 
     Returns:
-        Mapping of slot ID to Slot object.
+        dict[str, Slot]: Mapping of slot ID to Slot object.
+
+    Example:
+        >>> import pandas as pd
+        >>> df = pd.DataFrame(columns=["Name", "Tuesday, 6 PM"])
+        >>> slots = build_slots(df)
+        >>> slots["Tuesday, 6 PM"].day
+        'Tuesday'
     """
     if timings_df.empty:
         return {}
@@ -148,10 +193,16 @@ def build_locations(place_df: pd.DataFrame) -> dict[str, Location]:
     """Construct Location objects from place columns.
 
     Args:
-        place_df: Location poll DataFrame.
+        place_df (pd.DataFrame): Location poll DataFrame.
 
     Returns:
-        Mapping of location ID to Location object.
+        dict[str, Location]: Mapping of location ID to Location object.
+
+    Example:
+        >>> import pandas as pd
+        >>> df = pd.DataFrame(columns=["Name", "HSR Layout"])
+        >>> build_locations(df)
+        {'HSR Layout': Location(id='HSR Layout')}
     """
     if place_df.empty:
         return {}
@@ -174,6 +225,17 @@ def build_overlap_map(
 
     Pre-indexes players by each dimension so the inner loop performs
     set intersections instead of per-player predicate checks.
+
+    Args:
+        players (dict[str, Player]): All known players.
+        games (dict[str, Game]): All known games.
+        slots (dict[str, Slot]): All known time slots.
+        locations (dict[str, Location]): All known venues.
+
+    Returns:
+        dict[tuple[str, str, str], set[str]]: Mapping of
+            ``(game_id, slot_id, location_id)`` to the set of eligible
+            player ids.
     """
     # Pre-index players by each dimension for fast intersection
     game_players: dict[str, set[str]] = {
@@ -201,7 +263,20 @@ def build_overlap_map(
 def build_demand_matrix(
     players: dict[str, Player],
 ) -> dict[str, set[str]]:
-    """Map each game to the set of players who want it."""
+    """Map each game to the set of players who want it.
+
+    Args:
+        players (dict[str, Player]): All known players.
+
+    Returns:
+        dict[str, set[str]]: Mapping of game id to interested player ids.
+
+    Example:
+        >>> from models.entities import Player
+        >>> p = Player(id="Alice", all_prefs={"Scythe"})
+        >>> build_demand_matrix({"Alice": p})
+        {'Scythe': {'Alice'}}
+    """
     demand: dict[str, set[str]] = defaultdict(set)
 
     for pid, player in players.items():
@@ -214,7 +289,24 @@ def build_demand_matrix(
 def build_conflict_matrix(
     demand_matrix: dict[str, set[str]],
 ) -> dict[tuple[str, str], int]:
-    """Compute shared-player counts between all game pairs."""
+    """Compute shared-player counts between all game pairs.
+
+    Only pairs with at least one shared player are stored. Both orderings
+    of each pair are inserted so lookups can use either key order.
+
+    Args:
+        demand_matrix (dict[str, set[str]]): Mapping of game id to interested
+            player ids.
+
+    Returns:
+        dict[tuple[str, str], int]: Mapping of ``(game_a, game_b)`` to the
+            number of players interested in both games.
+
+    Example:
+        >>> dm = {"A": {"Alice", "Bob"}, "B": {"Bob", "Carol"}}
+        >>> build_conflict_matrix(dm)[("A", "B")]
+        1
+    """
     conflicts: dict[tuple[str, str], int] = {}
     game_ids = list(demand_matrix)
 

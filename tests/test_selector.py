@@ -9,7 +9,25 @@ from models.config_model import SchedulerConfig
 from engine.selector import select_sessions
 
 
-def _candidate(game, slot, location, players, score):
+def _candidate(
+    game: str,
+    slot: str,
+    location: str,
+    players: list[str],
+    score: float,
+) -> CandidateSession:
+    """Create a minimal viable CandidateSession for testing.
+
+    Args:
+        game (str): Game identifier.
+        slot (str): Slot identifier.
+        location (str): Location identifier.
+        players (list[str]): Eligible player ids.
+        score (float): Viability score.
+
+    Returns:
+        CandidateSession: Configured viable session with the given score.
+    """
     return CandidateSession(
         game=game,
         slot=slot,

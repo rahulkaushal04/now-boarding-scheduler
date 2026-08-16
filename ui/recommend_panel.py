@@ -98,7 +98,7 @@ def render_recommendations(
         return []
 
     # ---- Stat counters ----
-    covered_players = {p for c in viable for p in c.eligible_players}
+    covered_players = {p for c in viable for p in c.assigned_players}
     st.markdown(
         '<div class="stat-row">'
         f'<div class="stat-item"><div class="stat-value">{len(viable)}</div>'
@@ -180,7 +180,7 @@ def render_recommendations(
                         f'<strong style="font-size:0.92em">{c.game}</strong> '
                         f"{weight_badge_html(wclass)}{overflow_badge}<br>"
                         f'<span style="color:{TEXT_SEC};font-size:0.82em">'
-                        f"{time_label} / {c.eligible_count} players</span>"
+                        f"{time_label} / {c.assigned_count} players</span>"
                         f"</div>",
                         unsafe_allow_html=True,
                     )

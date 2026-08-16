@@ -196,7 +196,7 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             "Minimum players to run a game",
             min_value=1,
             max_value=5,
-            value=1,
+            value=2,
             key="config_default_min_players",
             help="A game needs at least this many players to be scheduled.",
         )

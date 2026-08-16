@@ -280,7 +280,7 @@ def build_demand_matrix(
     demand: dict[str, set[str]] = defaultdict(set)
 
     for pid, player in players.items():
-        for game in player.all_prefs:
+        for game in sorted(player.all_prefs):
             demand[game].add(pid)
 
     return dict(demand)

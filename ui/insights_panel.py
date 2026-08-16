@@ -130,7 +130,7 @@ def render_insights(
         "engine_selected", []
     )
     covered_players = {
-        pid for s in selected_sessions if s.viable for pid in s.eligible_players
+        pid for s in selected_sessions if s.viable for pid in s.assigned_players
     }
 
     covered_count = len(covered_players)

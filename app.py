@@ -139,7 +139,7 @@ def _run_engine() -> None:
         candidates = score_all_candidates(
             overlap_map, games, demand_matrix, slots, locations, all_player_ids
         )
-        result = select_sessions(candidates, config, conflict_matrix, all_player_ids)
+        result = select_sessions(candidates, config, games, demand_matrix)
 
         covered: set[str] = set()
         for rank, sess in enumerate(result.selected, 1):

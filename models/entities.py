@@ -194,9 +194,22 @@ class CandidateSession:
         slot: Slot identifier.
         location: Location identifier.
         eligible_players: Players who want the game, are free at the slot,
-            and prefer the location.
+            and prefer the location — the demand pool this session could
+            draw from, independent of what the optimizer ultimately does.
         eligible_count: Length of ``eligible_players`` (cached for speed).
-        viability_score: Weighted composite score in ``[0, 1]``.
+        assigned_players: Players the optimizer actually assigned to this
+            session after resolving same-slot conflicts (a player who is
+            eligible for two simultaneous sessions can only attend one).
+            Empty until the optimizer runs; for non-selected candidates it
+            stays empty.
+        assigned_count: Length of ``assigned_players`` (cached for speed).
+            This is the realistic attendance figure — use it instead of
+            ``eligible_count`` wherever a scheduled session's headcount is
+            displayed.
+        viability_score: Weighted composite score in ``[0, 1]``. Used only
+            for display/ranking (e.g. ranking near-miss suggestions) — the
+            optimizer selects sessions via exact constraints/objectives,
+            not this score.
         score_breakdown: Per-component scores (demand, popularity, etc.).
         viable: ``False`` when a hard filter was triggered.
         rejection_reason: Human-readable reason for non-viability, or ``None``.
@@ -210,6 +223,8 @@ class CandidateSession:
     location: str
     eligible_players: set[str] = field(default_factory=set)
     eligible_count: int = 0
+    assigned_players: set[str] = field(default_factory=set)
+    assigned_count: int = 0
     viability_score: float = 0.0
     score_breakdown: dict[str, float] = field(default_factory=dict)
     viable: bool = True
@@ -221,26 +236,12 @@ class CandidateSession:
 
 @dataclass(slots=True)
 class SelectionResult:
-    """Return type for the session selection process."""
+    """Return type for the session selection process.
+
+    Attributes:
+        selected: Sessions chosen by the optimizer, in display order.
+        suggestions: Best near-miss candidate per unscheduled game.
+    """
 
     selected: list[CandidateSession] = field(default_factory=list)
     suggestions: list[CandidateSession] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize the selection result to a JSON-friendly dict.
-
-        Returns:
-            dict[str, Any]: Serialized result fields.
-        """
-        return {
-            "game": self.game,
-            "slot": self.slot,
-            "location": self.location,
-            "eligible_players": sorted(self.eligible_players),
-            "eligible_count": self.eligible_count,
-            "viability_score": self.viability_score,
-            "score_breakdown": dict(self.score_breakdown),
-            "viable": self.viable,
-            "rejection_reason": self.rejection_reason,
-            "reasoning": self.reasoning.to_dict() if self.reasoning else None,
-        }

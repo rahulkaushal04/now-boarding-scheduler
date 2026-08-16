@@ -7,9 +7,20 @@ import pytest
 from models.entities import Game, Slot, Location
 from engine.scorer import score_all_candidates
 
+# (overlap_map, games, demand_matrix, slots, locations, all_players) — the
+# positional argument tuple accepted by score_all_candidates.
+ScorerScenario = tuple[
+    dict[tuple[str, str, str], set[str]],
+    dict[str, Game],
+    dict[str, set[str]],
+    dict[str, Slot],
+    dict[str, Location],
+    set[str],
+]
+
 
 @pytest.fixture
-def simple_scenario():
+def simple_scenario() -> ScorerScenario:
     """Minimal scenario: 2 games, 1 slot, 1 location, 3 players."""
     games = {
         "GameA": Game(id="GameA", weight_class="heavy", min_players=2),
@@ -30,7 +41,7 @@ def simple_scenario():
 
 
 class TestScorerComponents:
-    def test_scores_in_range(self, simple_scenario):
+    def test_scores_in_range(self, simple_scenario: ScorerScenario) -> None:
         candidates = score_all_candidates(*simple_scenario)
         for c in candidates:
             if c.viable:
@@ -38,14 +49,14 @@ class TestScorerComponents:
                 for v in c.score_breakdown.values():
                     assert 0.0 <= v <= 1.0
 
-    def test_viable_flag(self, simple_scenario):
+    def test_viable_flag(self, simple_scenario: ScorerScenario) -> None:
         candidates = score_all_candidates(*simple_scenario)
         viable = [c for c in candidates if c.viable]
         assert len(viable) >= 1
 
 
 class TestViabilityGate:
-    def test_below_min_players_rejected(self):
+    def test_below_min_players_rejected(self) -> None:
         games = {"G": Game(id="G", weight_class="heavy", min_players=5)}
         slots = {"S": Slot(id="S", day="Tue", time="6 PM")}
         locations = {"L": Location(id="L")}
@@ -59,7 +70,7 @@ class TestViabilityGate:
 
 
 class TestGameRuleFilters:
-    def test_owner_missing_rejected(self):
+    def test_owner_missing_rejected(self) -> None:
         games = {"G": Game(id="G", weight_class="heavy", min_players=1, owner="Kiran")}
         slots = {"S": Slot(id="S", day="Tue", time="6 PM")}
         locations = {"L": Location(id="L")}
@@ -71,7 +82,7 @@ class TestGameRuleFilters:
         assert all(not c.viable for c in candidates)
         assert "Owner Kiran" in candidates[0].rejection_reason
 
-    def test_day_restriction_rejected(self):
+    def test_day_restriction_rejected(self) -> None:
         games = {
             "G": Game(
                 id="G", weight_class="heavy", min_players=1, allowed_days={"Friday"}
@@ -87,7 +98,7 @@ class TestGameRuleFilters:
         assert all(not c.viable for c in candidates)
         assert "Tuesday rejected" in candidates[0].rejection_reason
 
-    def test_location_lock_rejected(self):
+    def test_location_lock_rejected(self) -> None:
         games = {
             "G": Game(id="G", weight_class="heavy", min_players=1, location_lock="HSR")
         }

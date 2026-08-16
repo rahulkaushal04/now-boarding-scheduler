@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import io
 
-import pytest
-
 from data.loader import (
     load_game_csv,
     load_metadata_csv,

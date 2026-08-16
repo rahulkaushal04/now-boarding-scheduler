@@ -25,14 +25,13 @@ from data.processor import (
     build_locations,
     build_overlap_map,
     build_demand_matrix,
-    build_conflict_matrix,
 )
 from engine.selector import select_sessions
 from ui.insights_panel import render_insights
 from engine.scorer import score_all_candidates
 from models.config_model import SchedulerConfig
 from ui.game_rules_panel import render_game_rules
-from ui.styles import TEXT_SEC, inject_custom_css
+from ui.styles import TEXT, inject_custom_css
 from ui.upload_panel import render_upload_section
 from ui.recommend_panel import render_recommendations
 from engine.explainer import add_conflict_notes, explain_candidate
@@ -61,8 +60,6 @@ _ENGINE_CACHE_KEYS = (
     "engine_selected",
     "engine_suggestions",
     "engine_demand_matrix",
-    "engine_conflict_matrix",
-    "engine_overlap_map",
 )
 
 
@@ -132,14 +129,13 @@ def _run_engine() -> None:
 
     overlap_map = build_overlap_map(players, games, slots, locations)
     demand_matrix = build_demand_matrix(players)
-    conflict_matrix = build_conflict_matrix(demand_matrix)
     all_player_ids = set(players)
 
     with st.spinner("Crunching the numbers..."):
         candidates = score_all_candidates(
             overlap_map, games, demand_matrix, slots, locations, all_player_ids
         )
-        result = select_sessions(candidates, config, conflict_matrix, all_player_ids)
+        result = select_sessions(candidates, config, games, demand_matrix)
 
         covered: set[str] = set()
         for rank, sess in enumerate(result.selected, 1):
@@ -154,14 +150,17 @@ def _run_engine() -> None:
     st.session_state["engine_selected"] = result.selected
     st.session_state["engine_suggestions"] = result.suggestions
     st.session_state["engine_demand_matrix"] = demand_matrix
-    st.session_state["engine_conflict_matrix"] = conflict_matrix
-    st.session_state["engine_overlap_map"] = overlap_map
 
 
 # ---------------------------------------------------------------------------
 # Main app flow
 # ---------------------------------------------------------------------------
-st.title("Now Boarding Scheduler")
+st.markdown(
+    '<div style="font-size:1.1rem;font-weight:700;color:'
+    f'{TEXT};margin-bottom:1rem">'
+    "Now Boarding Scheduler</div>",
+    unsafe_allow_html=True,
+)
 _step_indicator()
 
 step: int = st.session_state["step"]
@@ -178,9 +177,7 @@ if step == 1:
             st.rerun()
     else:
         st.markdown(
-            '<div class="summary-card" style="text-align:center;padding:2rem">'
-            f'<span style="color:{TEXT_SEC};font-size:1.05em">'
-            "Please add all four files to continue</span></div>",
+            '<div class="notice-box">Add all four files to continue.</div>',
             unsafe_allow_html=True,
         )
 
@@ -213,7 +210,6 @@ elif step == 3:
         st.session_state["engine_selected"],
         st.session_state["entity_players"],
         _get_state("rules_games", st.session_state["entity_games"]),
-        st.session_state["engine_candidates"],
         st.session_state["entity_slots"],
         st.session_state.get("engine_suggestions", []),
     )
@@ -236,14 +232,13 @@ elif step == 4:
         _run_engine()
 
     render_insights(
-        candidates=st.session_state["engine_candidates"],
         players=st.session_state["entity_players"],
         games=_get_state("rules_games", st.session_state["entity_games"]),
         demand_matrix=st.session_state["engine_demand_matrix"],
-        conflict_matrix=st.session_state["engine_conflict_matrix"],
-        slots=st.session_state["entity_slots"],
         locations=st.session_state["entity_locations"],
-        overlap_map=st.session_state["engine_overlap_map"],
+        slots=st.session_state["entity_slots"],
+        selected=st.session_state["engine_selected"],
+        config=_get_state("scheduler_config", SchedulerConfig()),
     )
 
     if st.button("\u2190 Back to Recommendations"):

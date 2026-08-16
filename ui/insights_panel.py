@@ -1,194 +1,93 @@
-"""Step 4 — Insights & Analytics dashboard.
+"""Step 4 — Insights: what this week's schedule actually did.
 
-Renders seven analytic sections using Plotly charts and Streamlit
-metrics: game demand ranking, demand heatmap, conflict matrix,
-player coverage, location demand split, unviable games, and time-slot
-density.  All charts use the ``plotly_dark`` template with brand colours.
+Poll votes are interest, not confirmed attendance — people who say
+they're free on Tuesday often don't show. So this page sticks to what's
+actually verifiable: the schedule the tool produced and how it's using
+the two cafés. It does not forecast demand or recommend spending money
+based on vote counts, because that certainty doesn't exist in the data.
 """
 
-import pandas as pd
 import streamlit as st
-import plotly.express as px
-import plotly.graph_objects as go
 
-from ui.styles import ACCENT, ALERT, PRIMARY, SUCCESS, SURFACE_RAISED
+from models.config_model import SchedulerConfig
 from models.entities import CandidateSession, Game, Location, Player, Slot
+from ui.styles import page_header, section_heading
 
 
 def render_insights(
-    candidates: list[CandidateSession],
     players: dict[str, Player],
     games: dict[str, Game],
     demand_matrix: dict[str, set[str]],
-    conflict_matrix: dict[tuple[str, str], int],
-    slots: dict[str, Slot],
     locations: dict[str, Location],
-    overlap_map: dict[tuple[str, str, str], set[str]],
+    slots: dict[str, Slot],
+    selected: list[CandidateSession],
+    config: SchedulerConfig,
 ) -> None:
-    """Render the full analytics / insights dashboard.
+    """Render the Insights page.
 
     Args:
-        candidates: All candidate sessions (viable and non-viable).
         players: Player objects keyed by id.
         games: Game objects keyed by id.
-        demand_matrix: Mapping from game id to the set of interested player ids.
-        conflict_matrix: Mapping from ``(game_a, game_b)`` to shared-player count.
-        slots: Slot objects keyed by id (order preserved from CSV).
+        demand_matrix: Mapping from game id to the set of interested player ids
+            (used only to size "games with any votes" for the summary line).
         locations: Location objects keyed by id.
-        overlap_map: ``(game, slot, location) → eligible players`` mapping.
+        slots: Slot objects keyed by id — used to size table capacity.
+        selected: The scheduled sessions for the week.
+        config: Scheduler configuration (table capacity per location).
     """
-    st.header("Insights & Analytics")
+    page_header("Insights", "How this week's schedule is using your two cafés.")
 
-    viable = [c for c in candidates if c.viable]
-    non_viable = [c for c in candidates if not c.viable]
-
-    # 1. Game Demand Ranking — bar chart
-    st.subheader("Game Demand Ranking")
-    demand_rows = [
-        {"Game": g, "Interested Players": len(pset)}
-        for g, pset in sorted(demand_matrix.items(), key=lambda x: -len(x[1]))
-    ]
-    if demand_rows:
-        df_demand = pd.DataFrame(demand_rows)
-        fig = px.bar(
-            df_demand,
-            x="Interested Players",
-            y="Game",
-            orientation="h",
-            color_discrete_sequence=[PRIMARY],
-            template="plotly_dark",
+    if not players:
+        st.markdown(
+            '<div class="notice-box">Nothing to show yet — go back and build a schedule first.</div>',
+            unsafe_allow_html=True,
         )
-        fig.update_layout(
-            yaxis=dict(autorange="reversed"),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=10, b=0),
-            height=max(300, len(demand_rows) * 32),
-        )
-        st.plotly_chart(fig, width="stretch")
+        return
 
-    # 2. Demand Heatmap — Game × Time Slot (summed across locations)
-    st.subheader("Demand Heatmap")
-
-    slot_ids = list(slots)
-    location_ids = list(locations)
-
-    # Order games by total demand (highest first)
-    game_demand_totals: dict[str, int] = {}
-    for gid in games:
-        game_demand_totals[gid] = sum(
-            len(overlap_map.get((gid, sid, lid), set()))
-            for sid in slot_ids
-            for lid in location_ids
-        )
-    game_ids = sorted(games, key=lambda g: game_demand_totals.get(g, 0))
-
-    # Build counts matrix
-    raw_data: list[list[int]] = []
-    for gid in game_ids:
-        raw_data.append(
-            [
-                sum(
-                    len(overlap_map.get((gid, sid, lid), set())) for lid in location_ids
-                )
-                for sid in slot_ids
-            ]
-        )
-
-    if raw_data:
-        display_data = [[float(v) for v in row] for row in raw_data]
-        text_data = [[str(v) for v in row] for row in raw_data]
-
-        fig_hm = go.Figure(
-            data=go.Heatmap(
-                z=display_data,
-                x=slot_ids,
-                y=game_ids,
-                text=text_data,
-                texttemplate="%{text}",
-                textfont=dict(size=11),
-                colorscale=[[0, SURFACE_RAISED], [0.5, ACCENT], [1, PRIMARY]],
-                hovertemplate="Game: %{y}<br>Slot: %{x}<br>Eligible: %{z:.0f}<extra></extra>",
-                colorbar=dict(title="Players"),
-                xgap=2,
-                ygap=2,
-            )
-        )
-        fig_hm.update_layout(
-            template="plotly_dark",
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=10, b=0),
-            height=max(350, len(game_ids) * 34),
-            xaxis=dict(side="top"),
-        )
-        st.plotly_chart(fig_hm, width="stretch")
-
-    # 3. Player Coverage
-    st.subheader("Player Coverage")
-    selected_sessions: list[CandidateSession] = st.session_state.get(
-        "engine_selected", []
+    games_running = {c.game for c in selected}
+    games_with_votes = {g for g, voters in demand_matrix.items() if voters}
+    st.markdown(
+        f'<div class="confirm-line">This week\'s schedule runs '
+        f"<strong>{len(selected)}</strong> session{'s' if len(selected) != 1 else ''} "
+        f"across <strong>{len(games_running)} of {len(games_with_votes)}</strong> "
+        "games with votes.</div>",
+        unsafe_allow_html=True,
     )
-    covered_players = {
-        pid for s in selected_sessions if s.viable for pid in s.eligible_players
-    }
 
-    covered_count = len(covered_players)
-    total_count = len(players)
-    uncovered = sorted(players.keys() - covered_players)
+    # ---- Table usage: HSR vs Jayanagar ----
+    section_heading("Table usage")
+    n_slots = max(len(slots), 1)
+    loc_cols = st.columns(max(len(locations), 1))
+    for col, lid in zip(loc_cols, sorted(locations)):
+        prefer_count = sum(1 for p in players.values() if lid in p.location_prefs)
+        used = sum(1 for c in selected if c.location == lid)
+        capacity = config.table_capacity(lid) * n_slots
+        pct_full = round(used / capacity * 100) if capacity else 0
+        with col:
+            st.markdown(
+                f'<div class="rec-card"><div class="rec-card-title">{lid}</div>'
+                f'<div class="rec-card-meta">{used} of {capacity} tables used this week '
+                f"({pct_full}%)</div>"
+                f'<div class="rec-card-meta">{prefer_count} players said they prefer '
+                "this café</div></div>",
+                unsafe_allow_html=True,
+            )
 
-    col1, col2 = st.columns(2)
-    col1.metric("Covered", f"{covered_count} / {total_count}")
-    col2.metric("Uncovered", f"{len(uncovered)}")
-    if uncovered:
-        with st.expander("Uncovered players"):
-            st.write(", ".join(uncovered))
+    # ---- Players without a session ----
+    served_players = {p for c in selected for p in c.assigned_players}
+    unserved_players = sorted(set(players) - served_players)
 
-    # 5. Location Split — donut chart
-    st.subheader("Location Demand Split")
-    loc_counts: dict[str, int] = {}
-    for player in players.values():
-        for loc in player.location_prefs:
-            loc_counts[loc] = loc_counts.get(loc, 0) + 1
-
-    if loc_counts:
-        fig_loc = px.pie(
-            names=list(loc_counts.keys()),
-            values=list(loc_counts.values()),
-            hole=0.5,
-            color_discrete_sequence=[PRIMARY, ACCENT, ALERT, SUCCESS],
-            template="plotly_dark",
+    section_heading("Players without a session")
+    if unserved_players:
+        st.markdown(
+            f'<div class="section-note">{len(unserved_players)} of {len(players)} players '
+            "weren't matched to a session based on their votes.</div>",
+            unsafe_allow_html=True,
         )
-        fig_loc.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=0, t=10, b=0),
-            height=300,
-        )
-        st.plotly_chart(fig_loc, width="stretch")
-
-    # 5. Unviable Games
-    st.subheader("Unviable Games")
-    if non_viable:
-        # De-duplicate by (game, reason)
-        seen: set[tuple[str, str]] = set()
-        unique: list[CandidateSession] = []
-        for c in non_viable:
-            key = (c.game, c.rejection_reason or "")
-            if key not in seen:
-                seen.add(key)
-                unique.append(c)
-
-        reasons_df = pd.DataFrame(
-            [
-                {
-                    "Game": c.game,
-                    "Slot": c.slot,
-                    "Location": c.location,
-                    "Reason": c.rejection_reason,
-                }
-                for c in unique
-            ]
-        )
-        st.dataframe(reasons_df, width="stretch", hide_index=True)
+        with st.expander(f"Show {len(unserved_players)} players"):
+            st.write(", ".join(unserved_players))
     else:
-        st.success("All candidates are viable!")
+        st.markdown(
+            '<div class="section-note">Every player who voted was matched to a session.</div>',
+            unsafe_allow_html=True,
+        )

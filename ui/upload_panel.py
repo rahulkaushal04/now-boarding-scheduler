@@ -15,7 +15,7 @@ import streamlit as st
 
 from models.config_model import SchedulerConfig
 from data.validators import validate_cross_files
-from ui.styles import ACCENT, SUCCESS, TEXT_MUTED
+from ui.styles import page_header
 from data.loader import load_game_csv, load_place_csv, load_timings_csv
 
 _EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example_data"
@@ -142,14 +142,9 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             st.session_state.pop(f"upload_{src['key']}_df", None)
     st.session_state["_prev_use_example"] = use_example_now
 
-    st.markdown(
-        '<div class="hero-card">'
-        '<div class="hero-title">Now Boarding Scheduler</div>'
-        '<div class="hero-subtitle">'
-        "Add your poll data and set up the session. "
-        "You can upload CSV files or paste the data directly."
-        "</div></div>",
-        unsafe_allow_html=True,
+    page_header(
+        "Upload your polls",
+        "Add the four poll results below, or try it with sample data first.",
     )
 
     col_left, col_right = st.columns([3, 2], gap="large")
@@ -179,8 +174,7 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
     # ----- Config inputs -----
     with col_right:
         st.markdown(
-            '<div class="config-card">'
-            '<div class="config-title">Session Config</div></div>',
+            '<div class="settings-title">Settings</div>',
             unsafe_allow_html=True,
         )
         max_repeats = st.number_input(
@@ -189,7 +183,6 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             max_value=5,
             value=2,
             key="config_max_repeats",
-            help="A popular game can be scheduled up to this many times across the week.",
         )
 
         default_min_players = st.number_input(
@@ -198,7 +191,7 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             max_value=5,
             value=2,
             key="config_default_min_players",
-            help="A game needs at least this many players to be scheduled.",
+            help="We won't open a table for fewer players than this.",
         )
 
         max_tables = st.number_input(
@@ -207,20 +200,17 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             max_value=4,
             value=2,
             key="config_max_tables",
-            help="How many tables can run at the same time slot and location.",
+            help="How many tables you have available at each café, at once.",
         )
 
         use_example = st.checkbox(
             "Use example data",
             key="use_example_data",
-            help="Load pre-filled example data so you can try the app right away.",
+            help="Try the app with sample data instead of your own.",
         )
 
         if use_example:
-            st.caption(
-                "Example data is now loaded. You can preview it below "
-                "or download the CSV files to see the exact format."
-            )
+            st.caption("Sample data loaded. Preview it below, or download it as a template.")
 
         # Download sample data as zip
         sample_files = [
@@ -253,20 +243,9 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
                 or _has_cached_df(f"upload_{src['key']}_df")
             )
         )
-        progress_color = (
-            SUCCESS
-            if provided_count == 4
-            else ACCENT if provided_count > 0 else TEXT_MUTED
-        )
-        st.markdown(
-            f'<div style="margin-top:1.5rem;padding:0.75rem 1rem;background:#1B1F27;'
-            f'border:1px solid #2D333B;border-radius:10px;text-align:center">'
-            f'<span style="color:{progress_color};font-weight:700;font-size:1.3em">'
-            f"{provided_count}/4</span>"
-            f'<br><span style="color:#6B7280;font-size:0.82em">files added</span>'
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.progress(provided_count / 4)
+        st.caption(f"{provided_count} of 4 files added")
 
     config = SchedulerConfig(
         max_repeats_per_week=int(max_repeats),
@@ -364,20 +343,11 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             )
 
         st.markdown(
-            '<div class="stat-row">'
-            f'<div class="stat-item">'
-            f'<div class="stat-value">{len(game_players)}</div>'
-            f'<div class="stat-label">Players</div></div>'
-            f'<div class="stat-item">'
-            f'<div class="stat-value">{len(all_games)}</div>'
-            f'<div class="stat-label">Games</div></div>'
-            f'<div class="stat-item">'
-            f'<div class="stat-value">{len(all_slots)}</div>'
-            f'<div class="stat-label">Time Slots</div></div>'
-            f'<div class="stat-item">'
-            f'<div class="stat-value">{len(all_locations)}</div>'
-            f'<div class="stat-label">Locations</div></div>'
-            "</div>",
+            '<div class="confirm-line">Loaded '
+            f"<strong>{len(game_players)}</strong> players, "
+            f"<strong>{len(all_games)}</strong> games, "
+            f"<strong>{len(all_slots)}</strong> time slots, "
+            f"<strong>{len(all_locations)}</strong> locations.</div>",
             unsafe_allow_html=True,
         )
 

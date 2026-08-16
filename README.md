@@ -41,7 +41,7 @@ The app is a **four-step wizard** that runs in your browser.
 Step 1 → Upload your polls
 Step 2 → Adjust game rules
 Step 3 → See the recommended schedule
-Step 4 → Explore the analytics
+Step 4 → Check the insights
 ```
 
 **Step 1 — Upload Your Data**
@@ -54,7 +54,7 @@ The app detects game owners automatically. You can review and adjust things like
 The app displays a timetable — rows are venues, columns are days. Each cell shows the game, the time, and how many players can make it. You also see "almost made it" games (high demand but couldn't fit) and games that couldn't be scheduled at all, with a plain-English reason for each.
 
 **Step 4 — Insights**
-Charts showing demand rankings, a player-vs-timeslot heatmap, coverage stats (which players got a session and which didn't), and a breakdown of rejected candidates.
+Three questions answered: which games we're failing to serve, how HSR and Jayanagar compare, and which players got nothing this week.
 
 ---
 
@@ -180,7 +180,7 @@ source .venv/bin/activate      # macOS / Linux
 pip install -r requirements.txt
 ```
 
-This installs five libraries: `streamlit` (the web UI), `plotly` (charts), `pandas` (data handling), `scipy` (the HiGHS MILP solver that powers the scheduling engine), and `pytest` (tests).
+This installs four libraries: `streamlit` (the web UI), `pandas` (data handling), `scipy` (the HiGHS MILP solver that powers the scheduling engine), and `pytest` (tests).
 
 **4. Launch the app**
 
@@ -326,7 +326,7 @@ ui/
   upload_panel.py            Step 1 — file upload, paste, example data, stat counters
   game_rules_panel.py        Step 2 — @st.fragment data editor with visual diff and per-game reset
   recommend_panel.py         Step 3 — day × location timetable, suggestions, non-viable section
-  insights_panel.py          Step 4 — Plotly charts and analytics
+  insights_panel.py          Step 4 — demand, location, and coverage tables
   styles.py                  Dark-mode CSS, colour palette constants, HTML badge helpers
 
 utils/
@@ -357,7 +357,6 @@ tests/                       pytest unit tests — one file per engine/data modu
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `streamlit` | 1.61.1 | Web UI framework |
-| `plotly` | 6.9.0 | Interactive charts in the Insights panel |
 | `pandas` | 3.0.5 | CSV parsing and DataFrame operations |
 | `scipy` | 1.18.0 | HiGHS MILP solver (`scipy.optimize.milp`) for the scheduling engine |
 | `pytest` | 9.1.1 | Unit testing |

@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from ui.styles import TEXT_SEC
+from ui.styles import page_header
 from models.entities import Game, Location, Player, Slot
 
 _DAY_ORDER = [
@@ -133,14 +133,9 @@ def render_game_rules(
     if original_games is None:
         original_games = games
 
-    st.header("Game Rules")
-    st.markdown(
-        f"<span style='color:{TEXT_SEC}'>"
-        "Here you can set who owns each game, which days it can be played, "
-        "and where it should be played. Owners detected from the data are "
-        "already filled in for you."
-        "</span>",
-        unsafe_allow_html=True,
+    page_header(
+        "Game rules",
+        "We've filled in owners and defaults from your polls — adjust anything that's wrong.",
     )
 
     # Check if current games differ from originals (prior edits survived nav)

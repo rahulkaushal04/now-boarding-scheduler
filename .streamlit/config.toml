@@ -2,10 +2,11 @@
 
 [theme]
 base = "dark"
-primaryColor = "#00D4AA"
-backgroundColor = "#0E1117"
-secondaryBackgroundColor = "#1B1F27"
-textColor = "#E6E6E6"
+primaryColor = "#5B7FEA"
+backgroundColor = "#0E1013"
+secondaryBackgroundColor = "#15171C"
+textColor = "#E6E8EB"
+font = "sans serif"
 
 [server]
 maxUploadSize = 10

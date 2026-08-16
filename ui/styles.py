@@ -66,6 +66,13 @@ def inject_custom_css() -> None:
             --nb-radius: 8px;
         }
 
+        html {
+            /* Bumps every rem-based size in the app (both the custom scale
+               above and Streamlit's own built-in widget styles) up from the
+               16px browser default — the whole app read too small at 16px. */
+            font-size: 18px;
+        }
+
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
         }

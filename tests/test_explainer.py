@@ -7,15 +7,14 @@ import pytest
 from models.entities import CandidateSession, Game, SessionReasoning
 from engine.explainer import explain_candidate, add_conflict_notes
 
+# (candidate, demand_matrix, covered_players, games) — the positional
+# argument tuple accepted by explain_candidate (minus rank).
+ExplainerContext = tuple[CandidateSession, dict[str, set[str]], set[str], dict[str, Game]]
+
 
 @pytest.fixture
-def context() -> tuple:
-    """Provide a standard (candidate, demand_matrix, covered, games) context.
-
-    Returns:
-        tuple: ``(CandidateSession, demand_matrix, covered_players, games_dict)``
-            for use in explainer tests.
-    """
+def context() -> ExplainerContext:
+    """Provide a standard (candidate, demand_matrix, covered, games) context."""
     candidate = CandidateSession(
         game="Kanban EV",
         slot="Tuesday, 6 PM",
@@ -39,7 +38,7 @@ def context() -> tuple:
 
 
 class TestExplainCandidate:
-    def test_reasoning_generated(self, context):
+    def test_reasoning_generated(self, context: ExplainerContext) -> None:
         candidate, demand, covered, games = context
         reasoning = explain_candidate(candidate, demand, covered, games, rank=1)
         assert isinstance(reasoning, SessionReasoning)
@@ -47,19 +46,19 @@ class TestExplainCandidate:
         assert "3" in reasoning.overlap_reason
         assert "Ranked #1" in reasoning.selection_reason
 
-    def test_owner_mentioned(self, context):
+    def test_owner_mentioned(self, context: ExplainerContext) -> None:
         candidate, demand, covered, games = context
         reasoning = explain_candidate(candidate, demand, covered, games)
         assert "Kiran" in reasoning.selection_reason
 
-    def test_highest_demand_label(self, context):
+    def test_highest_demand_label(self, context: ExplainerContext) -> None:
         candidate, demand, covered, games = context
         reasoning = explain_candidate(candidate, demand, covered, games)
         assert "highest demand" in reasoning.demand_reason
 
 
 class TestAddConflictNotes:
-    def test_conflict_notes_added(self):
+    def test_conflict_notes_added(self) -> None:
         s1 = CandidateSession(
             game="G1",
             slot="S1",
@@ -86,7 +85,7 @@ class TestAddConflictNotes:
         assert s1.reasoning.conflict_note is not None
         assert "Shares 1 player" in s1.reasoning.conflict_note
 
-    def test_no_conflict_when_disjoint(self):
+    def test_no_conflict_when_disjoint(self) -> None:
         s1 = CandidateSession(
             game="G1",
             slot="S1",

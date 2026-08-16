@@ -70,7 +70,9 @@ def sample_data() -> tuple[
 
 
 class TestBuildPlayers:
-    def test_player_prefs(self, sample_data) -> None:
+    def test_player_prefs(
+        self, sample_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> None:
         heavy_df, medium_df, timings_df, place_df = sample_data
 
         players = build_players(heavy_df, medium_df, timings_df, place_df)
@@ -82,7 +84,9 @@ class TestBuildPlayers:
 
 
 class TestBuildGames:
-    def test_courtesy_owner_detected(self, sample_data) -> None:
+    def test_courtesy_owner_detected(
+        self, sample_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> None:
         heavy_df, medium_df, _, place_df = sample_data
 
         empty_timings = pd.DataFrame(columns=["Name"])
@@ -95,7 +99,9 @@ class TestBuildGames:
 
 
 class TestOverlapMap:
-    def test_overlap_correctness(self, sample_data) -> None:
+    def test_overlap_correctness(
+        self, sample_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> None:
         heavy_df, medium_df, timings_df, place_df = sample_data
 
         players = build_players(heavy_df, medium_df, timings_df, place_df)
@@ -113,7 +119,9 @@ class TestOverlapMap:
 
 
 class TestConflictMatrix:
-    def test_symmetry(self, sample_data) -> None:
+    def test_symmetry(
+        self, sample_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> None:
         heavy_df, medium_df, timings_df, place_df = sample_data
 
         players = build_players(heavy_df, medium_df, timings_df, place_df)
@@ -123,7 +131,9 @@ class TestConflictMatrix:
         for (g1, g2), value in conflicts.items():
             assert conflicts.get((g2, g1), 0) == value
 
-    def test_shared_players(self, sample_data) -> None:
+    def test_shared_players(
+        self, sample_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+    ) -> None:
         heavy_df, medium_df, timings_df, place_df = sample_data
 
         players = build_players(heavy_df, medium_df, timings_df, place_df)

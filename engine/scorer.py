@@ -1,4 +1,12 @@
-"""Layer 1 — Score every (game, slot, location) candidate."""
+"""Layer 1 — hard-filter and rank every (game, slot, location) candidate.
+
+The viability score computed here is a display/ranking heuristic only —
+it orders candidates for the UI (e.g. choosing the best near-miss
+suggestion per unscheduled game) and has no influence on which sessions
+actually get scheduled. That decision is made exclusively by the exact
+MILP in ``engine/optimizer.py``. See ``config.py`` for the weight
+constants used below.
+"""
 
 from models.entities import CandidateSession, Game, Slot, Location
 from config import (

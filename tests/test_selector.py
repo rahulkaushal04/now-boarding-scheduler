@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from models.entities import CandidateSession, Game
+from models.entities import CandidateSession, Game, SelectionResult
 from models.config_model import SchedulerConfig
 from engine.selector import select_sessions, _slot_sort_key
 
@@ -48,7 +48,7 @@ def _run(
     config: SchedulerConfig | None = None,
     games: dict[str, Game] | None = None,
     demand: dict[str, set[str]] | None = None,
-):
+) -> SelectionResult:
     config = config or SchedulerConfig()
     games = games if games is not None else _games(*{c.game for c in candidates})
     demand = demand if demand is not None else _demand_from(candidates)
@@ -56,7 +56,7 @@ def _run(
 
 
 class TestSlotSortKey:
-    def test_chronological_ordering(self):
+    def test_chronological_ordering(self) -> None:
         """Weekdays sort Mon→Sun regardless of alphabetical order."""
         slots = [
             "Friday, 6 PM",
@@ -76,12 +76,12 @@ class TestSlotSortKey:
             "Sunday, 1 PM",
         ]
 
-    def test_unknown_day_sorts_last(self):
+    def test_unknown_day_sorts_last(self) -> None:
         """Unrecognised weekday names sort after all known days."""
         assert _slot_sort_key("Someday, 6 PM")[0] == 99
         assert _slot_sort_key("Tuesday, 6 PM")[0] < 99
 
-    def test_same_day_secondary_sort_by_slot_id(self):
+    def test_same_day_secondary_sort_by_slot_id(self) -> None:
         """Two sessions on the same day break ties by full slot string."""
         a = _slot_sort_key("Tuesday, 6 PM")
         b = _slot_sort_key("Tuesday, 8 PM")
@@ -89,7 +89,7 @@ class TestSlotSortKey:
 
 
 class TestSelectedListChronologicalOrder:
-    def test_selected_sorted_chronologically(self):
+    def test_selected_sorted_chronologically(self) -> None:
         """result.selected is returned in Mon→Sun day order, not alphabetical."""
         c_fri = _candidate("G1", "Friday, 6 PM", "L1", ["A"])
         c_tue = _candidate("G2", "Tuesday, 6 PM", "L1", ["B"])
@@ -100,7 +100,7 @@ class TestSelectedListChronologicalOrder:
 
 
 class TestTableCapacity:
-    def test_disjoint_games_both_open_a_second_table(self):
+    def test_disjoint_games_both_open_a_second_table(self) -> None:
         """Two games with disjoint player sets both run — opening the second
         table strictly increases coverage, so it's worth it."""
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])
@@ -109,7 +109,7 @@ class TestTableCapacity:
         assert len(result.selected) == 2
         assert result.selected[1].is_overflow is True
 
-    def test_overlapping_audiences_both_run_and_split_the_group(self):
+    def test_overlapping_audiences_both_run_and_split_the_group(self) -> None:
         """Two games sharing most of their audience are no longer blocked by
         an arbitrary similarity threshold: the optimizer runs both and
         splits the shared players between them (nobody can attend both, since
@@ -125,7 +125,7 @@ class TestTableCapacity:
         covered = {p for c in result.selected for p in c.assigned_players}
         assert covered == {"A", "B", "C", "D"}
 
-    def test_hard_ceiling_blocks_third_table(self):
+    def test_hard_ceiling_blocks_third_table(self) -> None:
         """max_tables_per_slot=2 blocks a third game at the same slot."""
         c1 = _candidate("G1", "S1", "L1", ["A"])
         c2 = _candidate("G2", "S1", "L1", ["B"])
@@ -136,7 +136,7 @@ class TestTableCapacity:
 
     def test_second_table_allowed_for_a_game_scheduled_elsewhere_when_it_adds_coverage(
         self,
-    ):
+    ) -> None:
         """A second table is allowed for a game already scheduled elsewhere
         this week, as long as it covers players nobody else reaches.
         """
@@ -149,13 +149,13 @@ class TestTableCapacity:
         covered = {p for s in result.selected for p in s.assigned_players}
         assert covered == {"A", "B", "C", "D", "E", "F"}
 
-    def test_different_locations_ok(self):
+    def test_different_locations_ok(self) -> None:
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])
         c2 = _candidate("G2", "S1", "L2", ["C", "D"])
         result = _run([c1, c2])
         assert len(result.selected) == 2
 
-    def test_per_location_table_capacity_override(self):
+    def test_per_location_table_capacity_override(self) -> None:
         """tables_per_location overrides max_tables_per_slot for a specific venue."""
         c1 = _candidate("G1", "S1", "L1", ["A"])
         c2 = _candidate("G2", "S1", "L1", ["B"])
@@ -166,14 +166,14 @@ class TestTableCapacity:
 
 
 class TestSelectsAllQualityCandidates:
-    def test_selects_all_disjoint_games(self):
+    def test_selects_all_disjoint_games(self) -> None:
         candidates = [
             _candidate(f"G{i}", f"S{i}", "L1", [f"P{i}"]) for i in range(5)
         ]
         result = _run(candidates)
         assert len(result.selected) == 5
 
-    def test_repeat_visits_at_different_slots_both_count_toward_revenue(self):
+    def test_repeat_visits_at_different_slots_both_count_toward_revenue(self) -> None:
         """The same two players eligible for the same game-ish setup at two
         different slots: both sessions get scheduled because a repeat visit
         by an already-served player still adds real revenue (attendance),
@@ -187,7 +187,7 @@ class TestSelectsAllQualityCandidates:
 
 
 class TestCoverageBonus:
-    def test_prefers_new_players(self):
+    def test_prefers_new_players(self) -> None:
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])
         c2 = _candidate("G2", "S2", "L1", ["A", "B"])
         c3 = _candidate("G3", "S3", "L1", ["C", "D"])
@@ -198,7 +198,7 @@ class TestCoverageBonus:
 
 
 class TestSameSlotDifferentLocation:
-    def test_overlap_across_locations_still_all_run(self):
+    def test_overlap_across_locations_still_all_run(self) -> None:
         """Same slot, different locations: the café can run both tables
         simultaneously even though some players are eligible for both —
         those players just get assigned to one location, not both."""
@@ -210,7 +210,7 @@ class TestSameSlotDifferentLocation:
         covered = {p for c in result.selected for p in c.assigned_players}
         assert covered == {"A", "B", "C", "D", "E", "F"}
 
-    def test_player_not_assigned_to_two_locations_at_once(self):
+    def test_player_not_assigned_to_two_locations_at_once(self) -> None:
         """A player eligible for two simultaneous sessions at different
         locations can only actually be assigned to one of them."""
         c1 = _candidate("G1", "S1", "L1", ["A"])
@@ -221,7 +221,7 @@ class TestSameSlotDifferentLocation:
 
 
 class TestDayLocationExclusivity:
-    def test_same_game_cannot_switch_location_same_day_different_slots(self):
+    def test_same_game_cannot_switch_location_same_day_different_slots(self) -> None:
         """A game can't run at HSR at one slot and Jayanagar at another slot
         on the *same day* — the physical copy can't move cafés mid-day."""
         c_hsr = _candidate("G1", "Tuesday, 6 PM", "HSR", ["A"])
@@ -230,7 +230,7 @@ class TestDayLocationExclusivity:
         locations_used = {c.location for c in result.selected}
         assert len(locations_used) <= 1
 
-    def test_same_game_can_switch_location_on_a_different_day(self):
+    def test_same_game_can_switch_location_on_a_different_day(self) -> None:
         """The same game *can* run at a different café on a different day."""
         c_hsr = _candidate("G1", "Tuesday, 6 PM", "HSR", ["A"])
         c_jay = _candidate("G1", "Wednesday, 6 PM", "Jayanagar", ["B"])
@@ -239,7 +239,7 @@ class TestDayLocationExclusivity:
 
 
 class TestMinPlayersEnforcedOnRealAssignment:
-    def test_session_not_run_if_real_assignment_would_fall_short(self):
+    def test_session_not_run_if_real_assignment_would_fall_short(self) -> None:
         """Two games with min_players=2 share their only two eligible fans at
         the same slot. Running both would force a 1-1 split, which fails
         the min_players floor for a session — so only one may run."""
@@ -252,7 +252,7 @@ class TestMinPlayersEnforcedOnRealAssignment:
 
 
 class TestOwnerMustAttend:
-    def test_owner_assigned_to_every_session_of_their_game(self):
+    def test_owner_assigned_to_every_session_of_their_game(self) -> None:
         c1 = _candidate("G1", "S1", "L1", ["Owner", "A", "B"])
         games = {"G1": Game(id="G1", weight_class="medium", min_players=1, owner="Owner")}
         result = _run([c1], games=games)
@@ -261,7 +261,7 @@ class TestOwnerMustAttend:
 
 
 class TestSuggestions:
-    def test_suggestion_when_table_capacity_forces_a_choice(self):
+    def test_suggestion_when_table_capacity_forces_a_choice(self) -> None:
         """With only one table available, the optimizer must pick one of two
         equally-good games — the other becomes a suggestion."""
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])
@@ -273,7 +273,7 @@ class TestSuggestions:
         assert result.suggestions[0].suggestion_reason is not None
         assert "full" in result.suggestions[0].suggestion_reason.lower()
 
-    def test_no_suggestion_when_game_is_scheduled(self):
+    def test_no_suggestion_when_game_is_scheduled(self) -> None:
         """Games that made the schedule should not appear as suggestions."""
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])
         c2 = _candidate("G2", "S2", "L1", ["C", "D"])
@@ -281,7 +281,7 @@ class TestSuggestions:
         assert len(result.selected) == 2
         assert len(result.suggestions) == 0
 
-    def test_game_scheduled_via_a_better_slot_is_not_a_suggestion(self):
+    def test_game_scheduled_via_a_better_slot_is_not_a_suggestion(self) -> None:
         """A game with a redundant, zero-value duplicate candidate at a busy
         slot still counts as scheduled via its other, useful candidate."""
         c1 = _candidate("G1", "S1", "L1", ["A", "B"])

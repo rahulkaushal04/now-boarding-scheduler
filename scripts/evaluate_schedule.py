@@ -33,6 +33,13 @@ _EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example_data"
 
 
 def main() -> None:
+    """Build a schedule from ``example_data`` and print business metrics to stdout.
+
+    Runs the full scoring → selection pipeline with default
+    ``SchedulerConfig`` values, then reports sessions, coverage,
+    attendance, and unmet demand — the same numbers used to compare
+    algorithm versions during development.
+    """
     heavy_df, _ = load_game_csv(str(_EXAMPLE_DIR / "heavy_games.csv"), "heavy")
     medium_df, _ = load_game_csv(str(_EXAMPLE_DIR / "medium_games.csv"), "medium")
     timings_df, _ = load_timings_csv(str(_EXAMPLE_DIR / "timings.csv"))

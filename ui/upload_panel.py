@@ -13,9 +13,11 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from config import EXCLUDED_COLUMNS
 from models.config_model import SchedulerConfig
 from data.validators import validate_cross_files
 from ui.styles import page_header
+from utils.names import extract_courtesy_owner
 from data.loader import load_game_csv, load_place_csv, load_timings_csv
 
 _EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "example_data"
@@ -320,9 +322,6 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
         all_games: set[str] = set()
         all_slots: set[str] = set()
         all_locations: set[str] = set()
-
-        from config import EXCLUDED_COLUMNS
-        from utils.names import extract_courtesy_owner
 
         if not heavy_df.empty:
             game_players.update(heavy_df["Name"].tolist())

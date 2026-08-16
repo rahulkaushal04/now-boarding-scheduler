@@ -96,7 +96,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from scipy import sparse
-from scipy.optimize import Bounds, LinearConstraint, milp
+from scipy.optimize import Bounds, LinearConstraint, OptimizeResult, milp
 
 from models.config_model import SchedulerConfig
 from models.entities import CandidateSession, Game
@@ -379,7 +379,14 @@ def _bounds_and_integrality(idx: _Index) -> tuple[Bounds, np.ndarray]:
     return Bounds(lb, ub), integrality
 
 
-def _solve(c_obj, A, lb, ub, bounds, integrality):
+def _solve(
+    c_obj: np.ndarray,
+    A: sparse.csr_matrix,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    bounds: Bounds,
+    integrality: np.ndarray,
+) -> OptimizeResult:
     """Run one HiGHS MILP solve and return the raw SciPy result."""
     return milp(
         c=c_obj,
@@ -454,7 +461,13 @@ def select_optimal(
     A, lb, ub = _build_constraints(idx, config, games)
     bounds, integrality = _bounds_and_integrality(idx)
 
-    def _run(stage_name: str, coeffs: np.ndarray, A_, lb_, ub_):
+    def _run(
+        stage_name: str,
+        coeffs: np.ndarray,
+        A_: sparse.csr_matrix,
+        lb_: np.ndarray,
+        ub_: np.ndarray,
+    ) -> OptimizeResult:
         c_obj = -coeffs  # milp minimizes; negate to maximize
         res = _solve(c_obj, A_, lb_, ub_, bounds, integrality)
         if res.x is None:

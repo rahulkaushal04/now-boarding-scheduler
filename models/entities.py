@@ -236,26 +236,12 @@ class CandidateSession:
 
 @dataclass(slots=True)
 class SelectionResult:
-    """Return type for the session selection process."""
+    """Return type for the session selection process.
+
+    Attributes:
+        selected: Sessions chosen by the optimizer, in display order.
+        suggestions: Best near-miss candidate per unscheduled game.
+    """
 
     selected: list[CandidateSession] = field(default_factory=list)
     suggestions: list[CandidateSession] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize the selection result to a JSON-friendly dict.
-
-        Returns:
-            dict[str, Any]: Serialized result fields.
-        """
-        return {
-            "game": self.game,
-            "slot": self.slot,
-            "location": self.location,
-            "eligible_players": sorted(self.eligible_players),
-            "eligible_count": self.eligible_count,
-            "viability_score": self.viability_score,
-            "score_breakdown": dict(self.score_breakdown),
-            "viable": self.viable,
-            "rejection_reason": self.rejection_reason,
-            "reasoning": self.reasoning.to_dict() if self.reasoning else None,
-        }

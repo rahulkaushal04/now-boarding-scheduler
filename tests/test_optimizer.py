@@ -26,7 +26,9 @@ def _candidate(game: str, slot: str, location: str, players: list[str]) -> Candi
     )
 
 
-def _games(*ids: str, min_players: int = 1, owner: str | None = None, weight_class: str = "medium"):
+def _games(
+    *ids: str, min_players: int = 1, owner: str | None = None, weight_class: str = "medium"
+) -> dict[str, Game]:
     return {
         gid: Game(id=gid, weight_class=weight_class, min_players=min_players, owner=owner)
         for gid in ids
@@ -41,14 +43,14 @@ def _demand_from(candidates: list[CandidateSession]) -> dict[str, set[str]]:
 
 
 class TestEmptyInput:
-    def test_no_candidates_returns_empty(self):
+    def test_no_candidates_returns_empty(self) -> None:
         selected, diagnostics = select_optimal([], SchedulerConfig(), {}, {})
         assert selected == []
         assert diagnostics == {}
 
 
 class TestDeterminism:
-    def test_identical_input_produces_identical_output_across_runs(self):
+    def test_identical_input_produces_identical_output_across_runs(self) -> None:
         """Same candidates, same config -> byte-identical schedule every time.
 
         Uses deep copies each run since select_optimal mutates
@@ -80,7 +82,7 @@ class TestDeterminism:
 
 
 class TestTableCapacityHardConstraint:
-    def test_never_exceeds_capacity(self):
+    def test_never_exceeds_capacity(self) -> None:
         candidates = [
             _candidate(f"G{i}", "S1", "L1", [f"P{i}"]) for i in range(5)
         ]
@@ -92,7 +94,7 @@ class TestTableCapacityHardConstraint:
 
 
 class TestRepeatLimitHardConstraint:
-    def test_never_exceeds_max_repeats(self):
+    def test_never_exceeds_max_repeats(self) -> None:
         candidates = [
             _candidate("G1", f"S{i}", "L1", [f"P{i}"]) for i in range(5)
         ]
@@ -104,7 +106,7 @@ class TestRepeatLimitHardConstraint:
 
 
 class TestSingleCopyPerSlotHardConstraint:
-    def test_same_game_never_runs_twice_in_the_same_slot_different_locations(self):
+    def test_same_game_never_runs_twice_in_the_same_slot_different_locations(self) -> None:
         """Only one physical copy exists — it can't be at two cafés at once,
         even though the table-capacity and repeat-limit constraints alone
         would otherwise permit it."""
@@ -119,7 +121,7 @@ class TestSingleCopyPerSlotHardConstraint:
 
 
 class TestPlayerSlotExclusivityHardConstraint:
-    def test_no_player_assigned_to_two_sessions_at_the_same_slot(self):
+    def test_no_player_assigned_to_two_sessions_at_the_same_slot(self) -> None:
         candidates = [
             _candidate("G1", "S1", "HSR Layout", ["A", "B"]),
             _candidate("G2", "S1", "Jayanagar", ["A", "C"]),
@@ -132,7 +134,7 @@ class TestPlayerSlotExclusivityHardConstraint:
 
 
 class TestSingleVisitPerGameHardConstraint:
-    def test_same_player_not_assigned_to_the_same_game_twice_in_the_week(self):
+    def test_same_player_not_assigned_to_the_same_game_twice_in_the_week(self) -> None:
         """A player who voted for (and could attend) the same game at two
         different slots on different days is realistically not going to
         show up twice for the identical game — only one assignment across
@@ -150,7 +152,7 @@ class TestSingleVisitPerGameHardConstraint:
         assigned_a_count = sum(1 for c in selected if "A" in c.assigned_players)
         assert assigned_a_count <= 1
 
-    def test_different_games_for_the_same_player_are_unrestricted(self):
+    def test_different_games_for_the_same_player_are_unrestricted(self) -> None:
         """The constraint is per (player, game) — a repeat visit to attend
         a *different* game on a different day is a legitimate, unrestricted
         repeat customer visit."""
@@ -166,7 +168,7 @@ class TestSingleVisitPerGameHardConstraint:
 
 
 class TestDiagnostics:
-    def test_diagnostics_report_every_stage(self):
+    def test_diagnostics_report_every_stage(self) -> None:
         candidates = [
             _candidate("G1", "S1", "L1", ["A", "B"]),
             _candidate("G2", "S2", "L1", ["C"]),
@@ -187,7 +189,7 @@ class TestDiagnostics:
 
 
 class TestRevenueWeighting:
-    def test_higher_revenue_weight_class_preferred_when_coverage_tied(self):
+    def test_higher_revenue_weight_class_preferred_when_coverage_tied(self) -> None:
         """Two games reach the exact same players at the same slot/location
         (only one can run due to the single-copy... no, different games can
         coexist) — when coverage is tied, the heavier revenue weight wins

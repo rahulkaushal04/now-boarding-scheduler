@@ -51,10 +51,10 @@ You upload four poll result files: which heavy games people want, which medium g
 The app detects game owners automatically. You can review and adjust things like minimum player counts, which days a game is allowed, or which venue it must be played at.
 
 **Step 3 — Recommendations**
-The app displays a timetable — rows are venues, columns are days. Each cell shows the game, the time, and how many players can make it. You also see "almost made it" games (high demand but couldn't fit) and games that couldn't be scheduled at all, with a plain-English reason for each.
+The app displays a timetable — rows are venues, columns are days. Each cell shows the game, the time, and how many players are actually assigned. You also see "almost made it" games — high demand but couldn't fit — with a plain-English reason for each.
 
 **Step 4 — Insights**
-Three questions answered: which games we're failing to serve, how HSR and Jayanagar compare, and which players got nothing this week.
+Two questions answered from the schedule itself, not from predicting who'll show up: how HSR and Jayanagar compare on table usage, and which players didn't get matched to a session. Poll votes are interest, not confirmed attendance, so Insights sticks to what the schedule actually contains rather than forecasting demand.
 
 ---
 
@@ -78,9 +78,9 @@ The app generates every possible combination of `(game, time slot, venue)` and a
 
 Combinations that pass get a **display-only** weighted viability score
 (demand, coverage, availability, popularity, diversity, location fit).
-This score ranks near-miss suggestions and the "almost made it" /
-"can't be scheduled" panels — it does **not** decide what gets
-scheduled. That decision is made exactly, by Layer 2.
+This score ranks the "almost made it" near-miss suggestions shown in
+Step 3 — it does **not** decide what gets scheduled. That decision is
+made exactly, by Layer 2.
 
 ### Layer 2 — Exact Optimization (`engine/optimizer.py`, `engine/selector.py`)
 
@@ -256,7 +256,7 @@ On each tab in Step 1 you can:
 | Setting | Default | What It Controls |
 |---------|---------|-----------------|
 | Max game repeats per week | 2 | How many times the same game can appear in the schedule (a rotation policy, not a physical limit) |
-| Minimum players to run a game | 1 | Global floor; individual games can have higher requirements set in Step 2. Enforced against real assigned attendance, not just the eligible pool. |
+| Minimum players to run a game | 2 | Global floor; individual games can have higher requirements set in Step 2. Enforced against real assigned attendance, not just the eligible pool. A single interested player isn't enough to justify opening a table. |
 | Max games at same time & place | 2 | How many tables can run simultaneously at one venue in one slot |
 
 Two more knobs exist at the code level (not yet exposed in the UI, since
@@ -299,7 +299,7 @@ changes on identical input.
 
 ```
 app.py                       Streamlit entry point — 4-step wizard, session state, engine orchestration
-config.py                    Scoring weights and shared constants
+config.py                    CSV parsing constants and display-only ranking weights
 
 data/
   loader.py                  CSV parsing → boolean DataFrames (handles vote markers, Total rows)
@@ -323,11 +323,15 @@ models/
   config_model.py            SchedulerConfig (user-facing settings with validation)
 
 ui/
-  upload_panel.py            Step 1 — file upload, paste, example data, stat counters
+  upload_panel.py            Step 1 — file upload, paste, example data, upload progress
   game_rules_panel.py        Step 2 — @st.fragment data editor with visual diff and per-game reset
-  recommend_panel.py         Step 3 — day × location timetable, suggestions, non-viable section
-  insights_panel.py          Step 4 — demand, location, and coverage tables
-  styles.py                  Dark-mode CSS, colour palette constants, HTML badge helpers
+  recommend_panel.py         Step 3 — day × location timetable, near-miss suggestions
+  insights_panel.py          Step 4 — table usage per café, unmatched-player summary
+                              (schedule facts only — no demand forecasting; see
+                              "Key Design Decisions" below)
+  styles.py                  Shared design system: constrained spacing/type scale as CSS
+                              custom properties, one accent colour, page_header/
+                              section_heading/weight_tag_html markup helpers
 
 utils/
   names.py                   Name normalisation and fuzzy substring matching for owner detection
@@ -350,7 +354,9 @@ tests/                       pytest unit tests — one file per engine/data modu
 
 **Near-miss suggestions.** After the optimizer runs, any game with zero scheduled sessions gets its best-scoring (Layer 1 score) candidate surfaced as a "suggestion" with a human-readable reason derived from the actual final schedule — making the result explainable not just for what was chosen but for what was left out.
 
-**Scoring weights are display-only.** The six weights in `config.py` (`W_DEMAND`, `W_COVERAGE`, etc.) rank near-miss suggestions and the non-viable panel; they have no influence on which sessions actually get scheduled — that's governed entirely by the optimizer's hard constraints and lexicographic objective in `engine/optimizer.py`, which uses only values genuinely derived from the poll data (vote counts) or explicit business policy (`SchedulerConfig`).
+**Scoring weights are display-only.** The six weights in `config.py` (`W_DEMAND`, `W_COVERAGE`, etc.) rank near-miss suggestions in Step 3; they have no influence on which sessions actually get scheduled — that's governed entirely by the optimizer's hard constraints and lexicographic objective in `engine/optimizer.py`, which uses only values genuinely derived from the poll data (vote counts) or explicit business policy (`SchedulerConfig`).
+
+**Insights reports facts about the schedule, not predictions about customers.** Poll answers are interest, not confirmed attendance — someone who votes "free Tuesday" often doesn't show. An earlier version of Step 4 surfaced "unmet demand" and recommended buying a second copy of a game based on vote counts alone, which states a business decision with more certainty than the data supports. Step 4 was rebuilt to report only what's actually verifiable: how the schedule uses each café's tables, and which players the optimizer didn't match to a session — both are facts about the schedule the tool produced, not forecasts about real-world turnout.
 
 ### Dependencies
 

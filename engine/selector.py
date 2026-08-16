@@ -159,11 +159,12 @@ def select_sessions(
     """Select the best non-conflicting set of sessions for the week.
 
     Delegates the actual decision to `engine.optimizer.select_optimal`
-    (exact 5-stage lexicographic MILP: coverage, then revenue, then
-    demand-match, then variety, then a deterministic tie-break — see that
-    module's docstring), then adds the display-only post-processing the
-    UI depends on: chronological ordering, the "2nd table" overflow
-    badge, and near-miss suggestions for games that scored zero sessions.
+    (exact 6-stage lexicographic MILP: coverage, then revenue, then
+    demand-match, then variety, then parsimony, then a deterministic
+    tie-break — see that module's docstring), then adds the display-only
+    post-processing the UI depends on: chronological ordering, the "2nd
+    table" overflow badge, and near-miss suggestions for games that
+    scored zero sessions.
 
     Args:
         candidates (list[CandidateSession]): Scored candidates from Layer 1

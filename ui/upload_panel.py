@@ -240,6 +240,7 @@ def render_upload_section() -> tuple[dict[str, Any], SchedulerConfig]:
             if (
                 sources[src["key"]][0] is not None
                 or (sources[src["key"]][1] and sources[src["key"]][1].strip())
+                or (use_example and _EXAMPLE_FILES[src["key"]].exists())
                 or _has_cached_df(f"upload_{src['key']}_df")
             )
         )

@@ -1,8 +1,7 @@
 """Step 3 — Recommendations: timetable view of best sessions.
 
-Renders a day × location grid of the highest-scoring viable sessions
-selected by the engine, plus a collapsible section for non-viable
-candidates and their rejection reasons.
+Renders a day × location grid of the sessions selected by the engine,
+plus near-miss suggestions for games that almost made the schedule.
 """
 
 from collections import defaultdict
@@ -48,7 +47,6 @@ def render_recommendations(
     candidates: list[CandidateSession],
     all_players: dict[str, Player],
     games: dict[str, Game],
-    all_candidates: list[CandidateSession] | None = None,
     slots: dict[str, Slot] | None = None,
     suggestions: list[CandidateSession] | None = None,
 ) -> list[CandidateSession]:
@@ -58,7 +56,6 @@ def render_recommendations(
         candidates: Selected (viable) sessions from the engine.
         all_players: Full player dict for coverage stats.
         games: Game objects keyed by id.
-        all_candidates: Complete candidate list (viable + non-viable).
         slots: Slot objects for day/time resolution.
         suggestions: Near-miss candidates that almost made the schedule.
 
@@ -69,8 +66,6 @@ def render_recommendations(
     suggestions = suggestions or []
 
     viable = [c for c in candidates if c.viable]
-    pool = all_candidates if all_candidates is not None else candidates
-    non_viable = [c for c in pool if not c.viable]
 
     page_header("Recommendations", "Your schedule for the week, built from player votes and availability.")
 
@@ -112,14 +107,15 @@ def render_recommendations(
     with header_cols[0]:
         st.markdown(
             f'<div style="padding:0.5rem 0;color:{TEXT_SEC};'
-            f'font-weight:600;font-size:0.85em">Place</div>',
+            f'font-weight:600;font-size:var(--nb-fs-sm)">Place</div>',
             unsafe_allow_html=True,
         )
     for i, day in enumerate(sorted_days):
         with header_cols[i + 1]:
             st.markdown(
-                f'<div style="padding:0.5rem 0;'
-                f'font-weight:600;font-size:0.9em;text-align:center">{day}</div>',
+                '<div style="padding:0.5rem 0;'
+                'font-weight:600;font-size:var(--nb-fs-sm);text-align:center">'
+                f"{day}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -129,7 +125,7 @@ def render_recommendations(
         with row_cols[0]:
             st.markdown(
                 f'<div style="padding:0.6rem 0;color:{TEXT_SEC};'
-                f'font-size:0.88em;font-weight:500">{loc}</div>',
+                f'font-size:var(--nb-fs-sm);font-weight:500">{loc}</div>',
                 unsafe_allow_html=True,
             )
         for i, day in enumerate(sorted_days):
@@ -138,7 +134,7 @@ def render_recommendations(
                 if not sessions:
                     st.markdown(
                         '<div style="padding:0.6rem;text-align:center;'
-                        f'color:{TEXT_SEC};font-size:0.85em;opacity:0.4">—</div>',
+                        f'color:{TEXT_SEC};font-size:var(--nb-fs-sm);opacity:0.4">—</div>',
                         unsafe_allow_html=True,
                     )
                     continue
@@ -201,33 +197,5 @@ def render_recommendations(
                         f"</div>",
                         unsafe_allow_html=True,
                     )
-
-    # ---- Non-viable section ----
-    if non_viable:
-        # Group by rejection reason, list game names under each
-        reason_games: dict[str, set[str]] = defaultdict(set)
-        for c in non_viable:
-            reason = c.rejection_reason or "Unknown reason"
-            reason_games[reason].add(c.game)
-
-        total_unique = len({c.game for c in non_viable})
-        with st.expander(
-            f"Can’t be scheduled ({total_unique} games)", expanded=False
-        ):
-            st.markdown('<div class="nv-scroll-container">', unsafe_allow_html=True)
-            for reason, game_names in sorted(
-                reason_games.items(), key=lambda r: -len(r[1])
-            ):
-                chips = " ".join(
-                    f'<span class="nv-chip">{g}</span>' for g in sorted(game_names)
-                )
-                st.markdown(
-                    f'<div class="nv-group">'
-                    f'<div class="nv-group-reason">{reason}</div>'
-                    f'<div class="nv-group-games">{chips}</div>'
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
 
     return viable

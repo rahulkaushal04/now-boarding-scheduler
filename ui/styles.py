@@ -1,9 +1,11 @@
 """Design foundation — shared stylesheet, colour palette, and small HTML helpers.
 
-All colours are defined as module-level constants. ``inject_custom_css`` pushes
-the shared stylesheet into every Streamlit page. Keep this file the single
-source of visual truth — panels should reach for these helpers and constants
-rather than hard-coding colours or one-off markup.
+Everything here follows a constrained system rather than one-off values:
+a 6-step spacing scale, a 5-step type scale, and one accent colour used
+sparingly. Panels should reach for these helpers and constants — and the
+CSS custom properties they inject — rather than hard-coding new sizes or
+colours. Consistency, not decoration, is what makes an interface read as
+"built by a professional" rather than "assembled from parts."
 """
 
 import html as _html
@@ -34,6 +36,36 @@ def inject_custom_css() -> None:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+        :root {
+            /* Type scale — 5 sizes, nothing in between */
+            --nb-fs-xs: 0.75rem;     /* 12px: tags, fine print */
+            --nb-fs-sm: 0.8125rem;   /* 13px: secondary text, meta, help */
+            --nb-fs-base: 0.9375rem; /* 15px: body */
+            --nb-fs-lg: 1.25rem;     /* 20px: section heading */
+            --nb-fs-xl: 1.75rem;     /* 28px: page title */
+
+            /* Spacing scale — 4px base unit */
+            --nb-sp-1: 0.25rem;  /* 4px */
+            --nb-sp-2: 0.5rem;   /* 8px */
+            --nb-sp-3: 0.75rem;  /* 12px */
+            --nb-sp-4: 1rem;     /* 16px */
+            --nb-sp-5: 1.5rem;   /* 24px */
+            --nb-sp-6: 2rem;     /* 32px */
+
+            --nb-primary: #5B7FEA;
+            --nb-accent: #C9922E;
+            --nb-alert: #D6635F;
+            --nb-success: #3FA66E;
+            --nb-surface: #15171C;
+            --nb-surface-raised: #1B1E25;
+            --nb-border: #262A33;
+            --nb-bg: #0E1013;
+            --nb-text: #E6E8EB;
+            --nb-text-sec: #98A2B3;
+            --nb-text-muted: #666E7D;
+            --nb-radius: 8px;
+        }
+
         html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
         }
@@ -41,30 +73,31 @@ def inject_custom_css() -> None:
         h1, h2, h3 { letter-spacing: -0.01em; }
 
         /* ---- Page header: plain title + one-line subtitle, no card ---- */
-        .page-header { margin-bottom: 1.5rem; }
+        .page-header { margin-bottom: var(--nb-sp-5); }
         .page-header h1 {
-            font-size: 1.5rem;
+            font-size: var(--nb-fs-xl);
             font-weight: 700;
-            color: #E6E8EB;
-            margin: 0 0 0.25rem 0;
+            color: var(--nb-text);
+            margin: 0 0 var(--nb-sp-1) 0;
+            line-height: 1.25;
         }
         .page-header p {
-            color: #98A2B3;
-            font-size: 0.95rem;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-base);
             margin: 0;
         }
 
         /* ---- Section heading used inside a page (not a full page header) ---- */
         .section-heading {
-            font-size: 1.05rem;
+            font-size: var(--nb-fs-lg);
             font-weight: 600;
-            color: #E6E8EB;
-            margin: 1.75rem 0 0.5rem 0;
+            color: var(--nb-text);
+            margin: var(--nb-sp-6) 0 var(--nb-sp-2) 0;
         }
         .section-note {
-            color: #98A2B3;
-            font-size: 0.88rem;
-            margin: -0.25rem 0 0.75rem 0;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-sm);
+            margin: calc(-1 * var(--nb-sp-1)) 0 var(--nb-sp-3) 0;
         }
 
         /* ---- Step indicator ---- */
@@ -72,25 +105,25 @@ def inject_custom_css() -> None:
             display: flex;
             align-items: center;
             gap: 0;
-            margin-bottom: 1.75rem;
-            border-bottom: 1px solid #262A33;
+            margin-bottom: var(--nb-sp-5);
+            border-bottom: 1px solid var(--nb-border);
         }
         .step-pill {
             flex: 1;
             text-align: center;
-            padding: 0 0 10px 0;
-            font-size: 0.88em;
+            padding: 0 0 var(--nb-sp-2) 0;
+            font-size: var(--nb-fs-sm);
             font-weight: 500;
-            color: #666E7D;
+            color: var(--nb-text-muted);
             border-bottom: 2px solid transparent;
             margin-bottom: -1px;
         }
         .step-pill.active {
-            color: #E6E8EB;
+            color: var(--nb-text);
             font-weight: 600;
-            border-bottom-color: #5B7FEA;
+            border-bottom-color: var(--nb-primary);
         }
-        .step-pill.done { color: #98A2B3; }
+        .step-pill.done { color: var(--nb-text-sec); }
         .step-pill .step-num {
             display: inline-flex;
             align-items: center;
@@ -98,116 +131,111 @@ def inject_custom_css() -> None:
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            font-size: 0.76em;
+            font-size: var(--nb-fs-xs);
             font-weight: 600;
-            margin-right: 6px;
+            margin-right: var(--nb-sp-2);
             vertical-align: middle;
         }
         .step-pill.pending .step-num {
             border: 1.5px solid #3A3F4B;
-            color: #666E7D;
+            color: var(--nb-text-muted);
         }
         .step-pill.active .step-num {
-            background: #5B7FEA;
-            color: #0E1013;
+            background: var(--nb-primary);
+            color: var(--nb-bg);
         }
         .step-pill.done .step-num {
             background: transparent;
-            border: 1.5px solid #98A2B3;
-            color: #98A2B3;
+            border: 1.5px solid var(--nb-text-sec);
+            color: var(--nb-text-sec);
         }
 
         /* ---- Tab styling ---- */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 4px;
-            border-bottom: 1px solid #262A33;
+            gap: var(--nb-sp-1);
+            border-bottom: 1px solid var(--nb-border);
         }
         .stTabs [data-baseweb="tab"] {
-            padding: 8px 4px;
+            padding: var(--nb-sp-2) var(--nb-sp-1);
             font-weight: 500;
-            font-size: 0.9em;
-            color: #98A2B3;
+            font-size: var(--nb-fs-sm);
+            color: var(--nb-text-sec);
         }
         .stTabs [aria-selected="true"] {
-            color: #E6E8EB !important;
+            color: var(--nb-text) !important;
         }
 
         /* ---- Settings panel (upload step sidebar) ---- */
-        .settings-card {
-            background: #15171C;
-            border: 1px solid #262A33;
-            border-radius: 10px;
-            padding: 1.1rem 1.25rem;
-        }
         .settings-title {
-            font-size: 0.95em;
+            font-size: var(--nb-fs-base);
             font-weight: 600;
-            color: #E6E8EB;
-            margin-bottom: 0.9rem;
+            color: var(--nb-text);
+            margin-bottom: var(--nb-sp-3);
         }
 
         /* ---- Plain confirmation line (replaces stat-card grids) ---- */
         .confirm-line {
-            color: #98A2B3;
-            font-size: 0.9rem;
-            margin: 0.5rem 0 1rem 0;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-sm);
+            margin: var(--nb-sp-2) 0 var(--nb-sp-4) 0;
         }
-        .confirm-line strong { color: #E6E8EB; font-weight: 600; }
+        .confirm-line strong { color: var(--nb-text); font-weight: 600; }
 
         /* ---- Neutral text tag (weight class, "2nd table", etc.) ---- */
         .tag {
-            color: #98A2B3;
-            font-size: 0.8em;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-xs);
             font-weight: 500;
         }
-        .tag.tag-attention { color: #C9922E; }
+        .tag.tag-attention { color: var(--nb-accent); }
 
         /* ---- Timetable session card ---- */
         .rec-card {
-            background: #15171C;
-            border: 1px solid #262A33;
-            border-radius: 8px;
-            padding: 0.75rem 0.9rem;
-            margin-bottom: 0.5rem;
+            background: var(--nb-surface);
+            border: 1px solid var(--nb-border);
+            border-radius: var(--nb-radius);
+            padding: var(--nb-sp-3) var(--nb-sp-4);
+            margin-bottom: var(--nb-sp-2);
         }
         .rec-card-title {
             font-weight: 600;
-            font-size: 0.95em;
-            color: #E6E8EB;
+            font-size: var(--nb-fs-base);
+            color: var(--nb-text);
         }
         .rec-card-meta {
-            color: #98A2B3;
-            font-size: 0.82em;
-            margin-top: 2px;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-sm);
+            margin-top: var(--nb-sp-1);
         }
 
         /* ---- Empty state ---- */
         .empty-state {
             text-align: center;
-            padding: 2.5rem 1rem;
-            color: #666E7D;
-            font-size: 0.95em;
+            padding: var(--nb-sp-6) var(--nb-sp-4);
+            color: var(--nb-text-muted);
+            font-size: var(--nb-fs-base);
         }
         .notice-box {
-            background: #15171C;
-            border: 1px solid #262A33;
-            border-radius: 8px;
-            padding: 1.25rem;
+            background: var(--nb-surface);
+            border: 1px solid var(--nb-border);
+            border-radius: var(--nb-radius);
+            padding: var(--nb-sp-5);
             text-align: center;
-            color: #98A2B3;
+            color: var(--nb-text-sec);
+            font-size: var(--nb-fs-base);
         }
 
         div[data-testid="stExpander"] {
-            border: 1px solid #262A33;
-            border-radius: 8px;
+            border: 1px solid var(--nb-border);
+            border-radius: var(--nb-radius);
         }
 
-        .stButton > button { border-radius: 6px; }
+        .stButton > button { border-radius: 6px; font-size: var(--nb-fs-sm); }
         .stButton > button[kind="primary"],
         .stButton > button[data-testid="stBaseButton-primary"] {
-            background-color: #5B7FEA;
-            border-color: #5B7FEA;
-            color: #0E1013;
+            background-color: var(--nb-primary);
+            border-color: var(--nb-primary);
+            color: var(--nb-bg);
             font-weight: 600;
         }
         .stButton > button[kind="primary"]:hover,
@@ -218,7 +246,7 @@ def inject_custom_css() -> None:
 
         /* ---- Upload file-uploader tweaks ---- */
         div[data-testid="stFileUploader"] { margin-bottom: 0rem !important; }
-        div[data-testid="stFileUploader"] section { padding: 0.5rem !important; }
+        div[data-testid="stFileUploader"] section { padding: var(--nb-sp-2) !important; }
 
         /* ---- Game Rules: pending-changes notice ---- */
         .rules-changes-bar {
@@ -226,62 +254,40 @@ def inject_custom_css() -> None:
             align-items: center;
             background: rgba(201, 146, 46, 0.08);
             border: 1px solid rgba(201, 146, 46, 0.25);
-            border-radius: 8px;
-            padding: 0.55rem 1rem;
-            margin: 0.75rem 0 0.5rem 0;
+            border-radius: var(--nb-radius);
+            padding: var(--nb-sp-2) var(--nb-sp-4);
+            margin: var(--nb-sp-3) 0 var(--nb-sp-2) 0;
         }
         .rules-changes-count {
-            color: #C9922E;
+            color: var(--nb-accent);
             font-weight: 600;
-            font-size: 0.88em;
+            font-size: var(--nb-fs-sm);
         }
         .change-tag {
             background: rgba(201, 146, 46, 0.12);
-            color: #C9922E;
+            color: var(--nb-accent);
             padding: 1px 7px;
             border-radius: 4px;
-            font-size: 0.76em;
+            font-size: var(--nb-fs-xs);
             font-weight: 500;
-            margin-right: 4px;
+            margin-right: var(--nb-sp-1);
             display: inline-block;
         }
 
         /* ---- Recommendations: suggestion card ---- */
         .suggest-card {
-            background: #15171C;
-            border: 1px solid #262A33;
-            border-radius: 8px;
-            padding: 0.65rem 0.85rem;
-            margin-bottom: 0.4rem;
+            background: var(--nb-surface);
+            border: 1px solid var(--nb-border);
+            border-radius: var(--nb-radius);
+            padding: var(--nb-sp-3) var(--nb-sp-4);
+            margin-bottom: var(--nb-sp-2);
         }
 
-        /* ---- Recommendations: can't-be-scheduled, grouped by reason ---- */
-        .nv-scroll-container {
-            max-height: 360px;
-            overflow-y: auto;
-            padding-right: 0.25rem;
-        }
-        .nv-group {
-            border-left: 2px solid #D6635F;
-            padding: 0.4rem 0 0.4rem 0.75rem;
-            margin-bottom: 0.6rem;
-        }
-        .nv-group-reason {
-            color: #98A2B3;
-            font-size: 0.85em;
-            margin-bottom: 0.3rem;
-        }
-        .nv-group-games {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.3rem;
-        }
-        .nv-chip {
-            background: #1B1E25;
-            color: #E6E8EB;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
+        /* ---- Dataframes: sit flush with the rest of the page ---- */
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--nb-border);
+            border-radius: var(--nb-radius);
+            overflow: hidden;
         }
         </style>
         """,

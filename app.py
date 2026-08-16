@@ -31,7 +31,7 @@ from ui.insights_panel import render_insights
 from engine.scorer import score_all_candidates
 from models.config_model import SchedulerConfig
 from ui.game_rules_panel import render_game_rules
-from ui.styles import TEXT_MUTED, inject_custom_css
+from ui.styles import TEXT, inject_custom_css
 from ui.upload_panel import render_upload_section
 from ui.recommend_panel import render_recommendations
 from engine.explainer import add_conflict_notes, explain_candidate
@@ -156,9 +156,9 @@ def _run_engine() -> None:
 # Main app flow
 # ---------------------------------------------------------------------------
 st.markdown(
-    f'<div style="font-size:0.8rem;font-weight:600;letter-spacing:0.03em;'
-    f'color:{TEXT_MUTED};text-transform:uppercase;margin-bottom:0.9rem">'
-    f"Now Boarding Scheduler</div>",
+    '<div style="font-size:1.1rem;font-weight:700;color:'
+    f'{TEXT};margin-bottom:1rem">'
+    "Now Boarding Scheduler</div>",
     unsafe_allow_html=True,
 )
 _step_indicator()
@@ -210,7 +210,6 @@ elif step == 3:
         st.session_state["engine_selected"],
         st.session_state["entity_players"],
         _get_state("rules_games", st.session_state["entity_games"]),
-        st.session_state["engine_candidates"],
         st.session_state["entity_slots"],
         st.session_state.get("engine_suggestions", []),
     )

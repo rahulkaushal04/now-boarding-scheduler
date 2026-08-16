@@ -1,19 +1,22 @@
 """Step 4 — Insights: what the schedule means for the business.
 
-Three focused views, each answering a question a café owner would
-actually ask: which games are we failing to serve, how are the two
-cafés doing relative to each other, and who got nothing this week.
-No chart is included unless it changes what the owner would do next.
+Three direct answers, each one a decision a café owner would actually
+make: which specific games have people wanting in who aren't getting a
+seat (candidates for a second copy or another session), how the two
+cafés compare this week, and who to personally follow up with. Nothing
+here is a raw data dump — every number is already the answer, not a
+spreadsheet to go figure the answer out from.
 """
 
 from collections import defaultdict
 
-import pandas as pd
 import streamlit as st
 
 from models.config_model import SchedulerConfig
 from models.entities import CandidateSession, Game, Location, Player, Slot
 from ui.styles import page_header, section_heading
+
+_MAX_GAPS_SHOWN = 5
 
 
 def render_insights(
@@ -36,7 +39,7 @@ def render_insights(
         selected: The scheduled sessions for the week.
         config: Scheduler configuration (table capacity per location).
     """
-    page_header("Insights", "What this week's schedule means, and where the gaps are.")
+    page_header("Insights", "Where this week's schedule is leaving value on the table.")
 
     if not players or not demand_matrix:
         st.markdown(
@@ -49,71 +52,59 @@ def render_insights(
     for c in selected:
         sessions_by_game[c.game].append(c)
 
-    # ---- 1. Game demand: who wants what, and who's actually getting it ----
-    section_heading("Game demand")
-    demand_rows = []
+    # ---- 1. Unmet demand: specific games worth a second copy or session ----
+    section_heading("Games people want but can't get into")
+    gaps: list[tuple[str, int, int]] = []
     for gid, interested in demand_matrix.items():
         if not interested:
             continue
-        game_sessions = sessions_by_game.get(gid, [])
         served: set[str] = set()
-        for c in game_sessions:
+        for c in sessions_by_game.get(gid, []):
             served |= c.assigned_players
-        demand_rows.append(
-            {
-                "Game": gid,
-                "Interested": len(interested),
-                "Scheduled": len(game_sessions),
-                "Served": len(served),
-                "Not served": len(interested) - len(served),
-            }
-        )
-    demand_rows.sort(key=lambda r: -r["Interested"])
+        not_served = len(interested) - len(served)
+        if not_served > 0:
+            gaps.append((gid, not_served, len(interested)))
+    gaps.sort(key=lambda r: -r[1])
 
-    if demand_rows:
-        st.dataframe(
-            pd.DataFrame(demand_rows),
-            width="stretch",
-            hide_index=True,
-            column_config={
-                "Interested": st.column_config.NumberColumn("Interested", help="Voted for this game"),
-                "Scheduled": st.column_config.NumberColumn("Sessions this week"),
-                "Served": st.column_config.NumberColumn("Got a seat"),
-                "Not served": st.column_config.NumberColumn("Missed out"),
-            },
+    if not gaps:
+        st.markdown(
+            '<div class="section-note">Everyone who wanted a game got a seat this week.</div>',
+            unsafe_allow_html=True,
         )
+    else:
+        st.markdown(
+            '<div class="section-note">Worth a second copy, an extra session, or a bigger table.</div>',
+            unsafe_allow_html=True,
+        )
+        for gid, not_served, interested in gaps[:_MAX_GAPS_SHOWN]:
+            st.markdown(
+                f'<div class="rec-card"><div class="rec-card-title">{gid}</div>'
+                f'<div class="rec-card-meta">{not_served} of {interested} people '
+                "who wanted it didn't get a seat</div></div>",
+                unsafe_allow_html=True,
+            )
+        if len(gaps) > _MAX_GAPS_SHOWN:
+            with st.expander(f"Show {len(gaps) - _MAX_GAPS_SHOWN} more"):
+                for gid, not_served, interested in gaps[_MAX_GAPS_SHOWN:]:
+                    st.markdown(f"**{gid}** — {not_served} of {interested} missed out")
 
     # ---- 2. HSR vs Jayanagar ----
     section_heading("HSR vs Jayanagar")
     n_slots = max(len(slots), 1)
-    location_rows = []
-    for lid in locations:
+    loc_cols = st.columns(max(len(locations), 1))
+    for col, lid in zip(loc_cols, sorted(locations)):
         prefer_count = sum(1 for p in players.values() if lid in p.location_prefs)
-        sessions_here = [c for c in selected if c.location == lid]
+        used = sum(1 for c in selected if c.location == lid)
         capacity = config.table_capacity(lid) * n_slots
-        used = len(sessions_here)
         pct_full = round(used / capacity * 100) if capacity else 0
-        location_rows.append(
-            {
-                "Location": lid,
-                "Prefer this café": prefer_count,
-                "Sessions this week": used,
-                "Table capacity": capacity,
-                "% of capacity used": pct_full,
-            }
-        )
-
-    if location_rows:
-        st.dataframe(
-            pd.DataFrame(location_rows),
-            width="stretch",
-            hide_index=True,
-            column_config={
-                "% of capacity used": st.column_config.ProgressColumn(
-                    "% of capacity used", min_value=0, max_value=100, format="%d%%"
-                ),
-            },
-        )
+        with col:
+            st.markdown(
+                f'<div class="rec-card"><div class="rec-card-title">{lid}</div>'
+                f'<div class="rec-card-meta">{used} of {capacity} tables used this week '
+                f"({pct_full}%)</div>"
+                f'<div class="rec-card-meta">{prefer_count} players prefer this café</div></div>',
+                unsafe_allow_html=True,
+            )
 
     # ---- 3. Players without a session ----
     served_players = {p for c in selected for p in c.assigned_players}

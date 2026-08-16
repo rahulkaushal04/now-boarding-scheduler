@@ -1,22 +1,17 @@
-"""Step 4 — Insights: what the schedule means for the business.
+"""Step 4 — Insights: what this week's schedule actually did.
 
-Three direct answers, each one a decision a café owner would actually
-make: which specific games have people wanting in who aren't getting a
-seat (candidates for a second copy or another session), how the two
-cafés compare this week, and who to personally follow up with. Nothing
-here is a raw data dump — every number is already the answer, not a
-spreadsheet to go figure the answer out from.
+Poll votes are interest, not confirmed attendance — people who say
+they're free on Tuesday often don't show. So this page sticks to what's
+actually verifiable: the schedule the tool produced and how it's using
+the two cafés. It does not forecast demand or recommend spending money
+based on vote counts, because that certainty doesn't exist in the data.
 """
-
-from collections import defaultdict
 
 import streamlit as st
 
 from models.config_model import SchedulerConfig
 from models.entities import CandidateSession, Game, Location, Player, Slot
 from ui.styles import page_header, section_heading
-
-_MAX_GAPS_SHOWN = 5
 
 
 def render_insights(
@@ -32,64 +27,35 @@ def render_insights(
 
     Args:
         players: Player objects keyed by id.
-        games: Game objects keyed by id (used only to confirm a game exists).
-        demand_matrix: Mapping from game id to the set of interested player ids.
+        games: Game objects keyed by id.
+        demand_matrix: Mapping from game id to the set of interested player ids
+            (used only to size "games with any votes" for the summary line).
         locations: Location objects keyed by id.
         slots: Slot objects keyed by id — used to size table capacity.
         selected: The scheduled sessions for the week.
         config: Scheduler configuration (table capacity per location).
     """
-    page_header("Insights", "Where this week's schedule is leaving value on the table.")
+    page_header("Insights", "How this week's schedule is using your two cafés.")
 
-    if not players or not demand_matrix:
+    if not players:
         st.markdown(
             '<div class="notice-box">Nothing to show yet — go back and build a schedule first.</div>',
             unsafe_allow_html=True,
         )
         return
 
-    sessions_by_game: dict[str, list[CandidateSession]] = defaultdict(list)
-    for c in selected:
-        sessions_by_game[c.game].append(c)
+    games_running = {c.game for c in selected}
+    games_with_votes = {g for g, voters in demand_matrix.items() if voters}
+    st.markdown(
+        f'<div class="confirm-line">This week\'s schedule runs '
+        f"<strong>{len(selected)}</strong> session{'s' if len(selected) != 1 else ''} "
+        f"across <strong>{len(games_running)} of {len(games_with_votes)}</strong> "
+        "games with votes.</div>",
+        unsafe_allow_html=True,
+    )
 
-    # ---- 1. Unmet demand: specific games worth a second copy or session ----
-    section_heading("Games people want but can't get into")
-    gaps: list[tuple[str, int, int]] = []
-    for gid, interested in demand_matrix.items():
-        if not interested:
-            continue
-        served: set[str] = set()
-        for c in sessions_by_game.get(gid, []):
-            served |= c.assigned_players
-        not_served = len(interested) - len(served)
-        if not_served > 0:
-            gaps.append((gid, not_served, len(interested)))
-    gaps.sort(key=lambda r: -r[1])
-
-    if not gaps:
-        st.markdown(
-            '<div class="section-note">Everyone who wanted a game got a seat this week.</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div class="section-note">Worth a second copy, an extra session, or a bigger table.</div>',
-            unsafe_allow_html=True,
-        )
-        for gid, not_served, interested in gaps[:_MAX_GAPS_SHOWN]:
-            st.markdown(
-                f'<div class="rec-card"><div class="rec-card-title">{gid}</div>'
-                f'<div class="rec-card-meta">{not_served} of {interested} people '
-                "who wanted it didn't get a seat</div></div>",
-                unsafe_allow_html=True,
-            )
-        if len(gaps) > _MAX_GAPS_SHOWN:
-            with st.expander(f"Show {len(gaps) - _MAX_GAPS_SHOWN} more"):
-                for gid, not_served, interested in gaps[_MAX_GAPS_SHOWN:]:
-                    st.markdown(f"**{gid}** — {not_served} of {interested} missed out")
-
-    # ---- 2. HSR vs Jayanagar ----
-    section_heading("HSR vs Jayanagar")
+    # ---- Table usage: HSR vs Jayanagar ----
+    section_heading("Table usage")
     n_slots = max(len(slots), 1)
     loc_cols = st.columns(max(len(locations), 1))
     for col, lid in zip(loc_cols, sorted(locations)):
@@ -102,11 +68,12 @@ def render_insights(
                 f'<div class="rec-card"><div class="rec-card-title">{lid}</div>'
                 f'<div class="rec-card-meta">{used} of {capacity} tables used this week '
                 f"({pct_full}%)</div>"
-                f'<div class="rec-card-meta">{prefer_count} players prefer this café</div></div>',
+                f'<div class="rec-card-meta">{prefer_count} players said they prefer '
+                "this café</div></div>",
                 unsafe_allow_html=True,
             )
 
-    # ---- 3. Players without a session ----
+    # ---- Players without a session ----
     served_players = {p for c in selected for p in c.assigned_players}
     unserved_players = sorted(set(players) - served_players)
 
@@ -114,13 +81,13 @@ def render_insights(
     if unserved_players:
         st.markdown(
             f'<div class="section-note">{len(unserved_players)} of {len(players)} players '
-            "didn't get a seat this week — worth a personal follow-up.</div>",
+            "weren't matched to a session based on their votes.</div>",
             unsafe_allow_html=True,
         )
         with st.expander(f"Show {len(unserved_players)} players"):
             st.write(", ".join(unserved_players))
     else:
         st.markdown(
-            '<div class="section-note">Everyone who voted got a seat this week.</div>',
+            '<div class="section-note">Every player who voted was matched to a session.</div>',
             unsafe_allow_html=True,
         )
